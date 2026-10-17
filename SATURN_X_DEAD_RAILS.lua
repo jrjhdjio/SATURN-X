@@ -1,21 +1,24 @@
--- SATURN X / DEAD RAILS / v1.0.0-rails-beta / Created by BM
--- Target: https://www.roblox.com/games/87595889629373/Dead-Rails
--- This is the user-linked Modified Frontpage Tycoons experience.
--- It does not target the separate RCM Games Dead Rails experience.
--- No live Roblox testing has been performed. Item names are configurable heuristics.
--- Pull uses local physics; prompt pickup uses normal hold input and checks distance.
+-- SATURN X / DEAD RAILS / v1.1.0-rails-beta / Created by BM
+-- Target: https://www.roblox.com/games/116495829188952/Dead-Rails (RCM Games)
+-- Universe 7018190066 is verified through the Roblox places/universe API.
+-- The universe guard accepts gameplay subplaces as well as the lobby.
+-- Run the loader again after teleporting from the lobby into a round.
+-- No live Roblox testing has been performed; game-specific adapters are experimental.
+-- RuntimeItems/ObjectInfo schema reference: InfernusScripts/Null-Fire,
+-- Core/Loaders/Dead-Rails/Main.lua @ a40005c3a7ab4daeb635272b00f0a7cb24d25a33.
+-- Pull uses local physics. Pickup uses prompts or typed game pickup requests nearby.
 -- Neither an input attempt nor arrival at an item proves collection succeeded.
 -- Embedded original logo and both MP3 files require custom-asset runtime support.
 -- Drag the title bar; Right Shift toggles the menu; End stops features.
--- No remote-code downloads, unknown remote calls, purchase automation or telemetry.
+-- No remote-code downloads, purchase automation or telemetry.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.0-rails-beta",
-    PlaceId = 87595889629373,
+    Creator = "BM", Version = "1.1.0-rails-beta",
+    PlaceId = 116495829188952, UniverseId = 7018190066,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
-    MaxScanParts = 1400, ScanInterval = 3,
-    ItemNames = "Coal,Wood,Cash,Money,Coin,GoldBar,SilverBar,Bandage,Ammo,RevolverAmmo,RifleAmmo,Crate,Scrap",
+    MaxScanParts = 1400, ScanInterval = 3, PickupRange = 12,
+    ItemNames = "Coal,Bond,Bonds,Wood,Cash,Money,Moneybag,Coin,GoldBar,SilverBar,Gold,Silver,Bandage,Snake Oil,Ammo,RevolverAmmo,RifleAmmo,ShotgunAmmo,Revolver,Rifle,Shotgun,Crate,Scrap",
 }
 
 local EMBED = {
@@ -32,6 +35,7 @@ local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
 local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 if not player then warn("SATURN X: run on a Roblox client, not a server.") return end
@@ -47,7 +51,8 @@ local S = {
     alive=true,open=true,tab=1,connections={},items={},npcs={},markers={},entityMarkers={},
     scanBusy=false,lastScan=0,scanCount=0,scanCapped=false,scanRadius=CONFIG.ScanRadius,search="",selectedItem=nil,
     pull=false,pullRadius=60,pullLimit=6,pulledParts={},attempts=0,
-    autoLoot=false,autoPickup=false,pickupToken=0,holdPrompt=nil,
+    autoLoot=false,autoPickup=false,pickupToken=0,holdPrompt=nil,lastPickupRequest=-math.huge,
+    includeRuntimeItems=true,runtimeCount=0,runtimeTotal=0,runtimeCursor=0,
     routeToken=0,walkGoal=nil,routeStatus="ยังไม่ได้เริ่มเดิน",
     itemEsp=false,playerEsp=false,npcEsp=false,nameTags=true,
     fly=false,flight=nil,flySpeed=35,up=false,down=false,
@@ -56,7 +61,8 @@ local S = {
     mute=false,volume=0.45,fov=nil,cameraSnapshot=nil,fps=0,lastError="none",
     waypoints={},selectedWaypoint=nil,resourceNames={},
     media={logo="กำลังโหลด",window="กำลังโหลด",click="กำลังโหลด"},
-    gameMatch=game.PlaceId==CONFIG.PlaceId,
+    gameMatch=game.PlaceId==CONFIG.PlaceId or game.GameId==CONFIG.UniverseId,
+    isLobby=game.PlaceId==CONFIG.PlaceId,
 }
 for name in string.gmatch(CONFIG.ItemNames,"[^,]+") do S.resourceNames[string.lower(name):gsub("[%s_%-]","")]=true end
 local C = {
@@ -322,7 +328,7 @@ local function character()
     return c:FindFirstChildOfClass("Humanoid"), c:FindFirstChild("HumanoidRootPart")
 end
 local function gameReady()
-    if not S.gameMatch then notify("Place ID ไม่ตรงกับแมพ Dead Rails ที่ BM ส่งมา • เปิดได้เฉพาะเมนู") return false end
+    if not S.gameMatch then notify("แมพนี้ไม่ใช่ Dead Rails ของ RCM Games • เปิดได้เฉพาะเมนู") return false end
     local h, r = character()
     if not h or not r or h.Health <= 0 then notify("รอให้ตัวละครเกิดก่อนครับ") return false end
     return true
@@ -380,10 +386,34 @@ local function startFlight()
     return true
 end
 
--- The linked experience uses its own models. Object names are configurable.
+-- RCM Dead Rails: inspect replicated RuntimeItems without loading third-party code.
 local function normalize(text) return string.lower(tostring(text)):gsub("[%s_%-]", "") end
-local lootContainers = {items=true,droppeditems=true,droppedparts=true,drops=true,resources=true,loot=true,pickups=true,collectibles=true}
+local lootContainers = {runtimeitems=true,items=true,droppeditems=true,droppedparts=true,drops=true,resources=true,loot=true,pickups=true,collectibles=true}
 local purchaseContainers = {buttons=true,purchases=true,droppers=true,shopitems=true}
+local function runtimeFolder()
+    local folder=Workspace:FindFirstChild("RuntimeItems")
+    return folder and (folder:IsA("Folder") or folder:IsA("Model")) and folder or nil
+end
+local function objectTags(object)
+    local tags={}
+    local info=object:FindFirstChild("ObjectInfo")
+    if info then
+        for i,child in ipairs(info:GetChildren()) do
+            if i>24 then break end
+            if child:IsA("TextLabel") and child.Name~="Title" then tags[normalize(child.Text)]=true end
+        end
+    end
+    return tags
+end
+local function pickupRequestName(item)
+    if not item.runtime then return nil end
+    local tags=item.tags
+    for _,kind in ipairs({"consumable","gun","weapon","melee","playable","tool"}) do
+        if tags[kind] then return "PickUpTool" end
+    end
+    if tags.currency or tags.ammo then return "C_ActivateObject" end
+    return nil
+end
 local function pickupAction(text)
     local n=string.lower(tostring(text))
     for _,word in ipairs({"buy","purchase","sell","build","upgrade","robux","ซื้อ","ขาย","สร้าง","อัปเกรด"}) do
@@ -395,8 +425,9 @@ local function pickupAction(text)
     return false
 end
 local function candidate(part)
-    if not part:IsA("BasePart") or part:IsA("Seat") or part:IsA("VehicleSeat") then return nil end
+    if not part:IsDescendantOf(Workspace) or not part:IsA("BasePart") or part:IsA("Seat") or part:IsA("VehicleSeat") then return nil end
     local current, object, inLoot = part, nil, false
+    local runtime=runtimeFolder()
     for _=1,14 do
         if not current or current==Workspace then break end
         if current==localVisuals or current:IsA("Tool") or current:IsA("Accessory") or current:IsA("Backpack") then return nil end
@@ -406,7 +437,12 @@ local function candidate(part)
         if lootContainers[n] then inLoot=true end
         local owner=current:GetAttribute("OwnerUserId")
         if owner~=nil and owner~=0 and owner~=player.UserId then return nil end
+        local price=current:GetAttribute("BuyPrice")
+        if price~=nil and price~=false then return nil end
         if (current:IsA("Model") or current:IsA("BasePart")) and S.resourceNames[n] then object=current end
+        if runtime and current.Parent==runtime and (current:IsA("Model") or current:IsA("BasePart")) then
+            if S.resourceNames[n] or (S.includeRuntimeItems and current:FindFirstChild("ObjectInfo")) then object=current end
+        end
         current=current.Parent
     end
     if not object then return nil end
@@ -417,7 +453,8 @@ local function candidate(part)
     if not inLoot and not prompt then return nil end
     local rootPart=object:IsA("BasePart") and object or object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart",true)
     if not rootPart then return nil end
-    return {object=object,part=rootPart,prompt=prompt,name=object.Name,path=object:GetFullName()}
+    return {object=object,part=rootPart,prompt=prompt,name=object.Name,path=object:GetFullName(),
+        runtime=runtime~=nil and object.Parent==runtime,tags=objectTags(object)}
 end
 local function canPull(item)
     if not item.object.Parent or not item.part.Parent then return nil end
@@ -445,13 +482,48 @@ local function npcCandidate(part)
         current=current.Parent
     end
 end
+-- Direct traversal also finds items with CanQuery=false; spatial scans alone miss them.
+local function runtimeCandidates(position,radius,actor)
+    local folder=runtimeFolder()
+    if not folder then return {},0,0 end
+    local children=folder:GetChildren()
+    local total=#children
+    if total==0 then S.runtimeCursor=0 return {},0,0 end
+    local count=math.min(total,CONFIG.MaxScanParts)
+    local start=S.runtimeCursor or 0
+    local found={}
+    for i=1,count do
+        if not S.alive or actor~=player.Character then return nil,0,total end
+        local obj=children[((start+i-1)%total)+1]
+        local part=obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)))
+        if part and part.Parent and (part.Position-position).Magnitude<=radius then
+            local item=candidate(part)
+            if item then table.insert(found,item) end
+        end
+        if i%100==0 then task.wait() end
+    end
+    S.runtimeCursor=(start+count)%total
+    return found,count,total
+end
 local resultBox, scanInfo, pullInfo, routeInfo, diagnosticBox, entityInfo, entityList
 local resultConnections, entityConnections = {}, {}
+local function lootReady(silent)
+    local message
+    if not S.gameMatch then message="แมพนี้ไม่ใช่ Dead Rails ของ RCM Games"
+    elseif S.isLobby then message="อยู่ในล็อบบี้ • เข้าเล่นรอบ แล้วรันโหลดเดอร์อีกครั้งครับ"
+    elseif not runtimeFolder() then message="กำลังรอไอเท็มในด่านโหลด • ลองสแกนใหม่อีกครั้งครับ" end
+    if message then
+        if scanInfo then scanInfo.Text=message end
+        if not silent then notify(message) end
+        return false
+    end
+    return true
+end
 local function filteredItems()
     local _,r=character() if not r then return {} end
     local out={}
     for _,item in ipairs(S.items) do
-        if item.object.Parent and item.part.Parent then
+        if item.object:IsDescendantOf(Workspace) and item.part:IsDescendantOf(Workspace) then
             item.distance=(r.Position-item.part.Position).Magnitude
             if item.distance<=S.scanRadius and (S.search=="" or string.find(string.lower(item.name),string.lower(S.search),1,true)) then table.insert(out,item) end
         end
@@ -464,23 +536,27 @@ local function renderResults()
     for _,c in ipairs(resultConnections) do c:Disconnect() end resultConnections={}
     for _,c in ipairs(resultBox:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
     local items=filteredItems()
-    scanInfo.Text=string.format("พบ %d ชิ้น • ตรวจ %d parts%s\nเลือกของเพื่อเดินไป กดเก็บ หรือทดลองดึง",#items,S.scanCount,S.scanCapped and " (ถึงขีดจำกัด)" or "")
+    scanInfo.Text=string.format("พบ %d ชิ้น • ตรวจของ %d / %d%s\nเลือกของเพื่อเดินไป กดเก็บ หรือทดลองดึง",#items,S.runtimeCount,S.runtimeTotal,S.scanCapped and " (ตรวจบางส่วน)" or "")
     for i=1,math.min(#items,20) do
         local item=items[i]
         local b=make("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundColor3=C.card,BorderSizePixel=0,TextColor3=C.text,TextSize=12,TextWrapped=true,Font=Enum.Font.Gotham,
-            Text=string.format("%s • %.0f studs%s",item.name,item.distance,S.selectedItem==item.object and " ✓" or "")},resultBox) corner(b,8)
+            Text=string.format("%s • %.0f studs • %s%s",item.name,item.distance,(item.prompt or pickupRequestName(item)) and "มีระบบเก็บ" or "ลาก/ยก",S.selectedItem==item.object and " ✓" or "")},resultBox) corner(b,8)
         table.insert(resultConnections,b.Activated:Connect(function() playSound("click") S.selectedItem=item.object renderResults() end))
     end
 end
 local function scan()
     if S.scanBusy or not S.alive or not S.gameMatch then return end
+    if not lootReady(true) then S.items={} S.npcs={} S.lastScan=os.clock() return end
     local _,r=character() if not r then return end
     local actor=player.Character S.scanBusy=true
     local ok,err=pcall(function()
         local params=OverlapParams.new() params.MaxParts=CONFIG.MaxScanParts params.FilterType=Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances={actor,localVisuals}
         local parts=Workspace:GetPartBoundsInRadius(r.Position,S.scanRadius,params)
-        local items,npcs,seen,seenNpc={},{},{},{}
+        local items,runtimeCount,runtimeTotal=runtimeCandidates(r.Position,S.scanRadius,actor)
+        if not items then return end
+        local npcs,seen,seenNpc={},{},{}
+        for _,item in ipairs(items) do seen[item.object]=true end
         for i,part in ipairs(parts) do
             if not S.alive or actor~=player.Character then return end
             local item=candidate(part)
@@ -490,7 +566,9 @@ local function scan()
             if i%100==0 then task.wait() end
         end
         if not S.alive or actor~=player.Character then return end
-        S.items=items S.npcs=npcs S.scanCount=#parts S.scanCapped=#parts>=CONFIG.MaxScanParts S.lastScan=os.clock()
+        S.items=items S.npcs=npcs S.scanCount=#parts
+        S.runtimeCount=runtimeCount S.runtimeTotal=runtimeTotal
+        S.scanCapped=#parts>=CONFIG.MaxScanParts or runtimeCount<runtimeTotal S.lastScan=os.clock()
         renderResults()
     end)
     S.scanBusy=false
@@ -517,10 +595,31 @@ local function promptReady(prompt,r)
     return position and (r.Position-position).Magnitude<=prompt.MaxActivationDistance
 end
 local function pickupItem(item,silent)
-    if not S.alive or not S.gameMatch then return false end
+    if not S.alive or not lootReady(silent) then return false end
     local h,r=character()
-    local prompt=item and item.prompt
-    if not h or not r or h.Health<=0 or not promptReady(prompt,r) then
+    local fresh=item and item.part.Parent and candidate(item.part)
+    if not h or not r or h.Health<=0 or not fresh or fresh.object~=item.object then return false end
+    local prompt=fresh.prompt
+    if not prompt then
+        local requestName=pickupRequestName(fresh)
+        if not requestName then
+            if not silent then notify("ชิ้นนี้เป็นของลาก/ยก • ใช้การลากหรือถุงของเกมครับ") end return false
+        end
+        if (r.Position-fresh.part.Position).Magnitude>CONFIG.PickupRange then
+            if not silent then notify("เข้าใกล้ของภายใน "..CONFIG.PickupRange.." studs ก่อนครับ") end return false
+        end
+        if os.clock()-S.lastPickupRequest<1 then return false end
+        local remote=ReplicatedStorage:FindFirstChild(requestName,true)
+        if not remote or not remote:IsA("RemoteEvent") then
+            if not silent then notify("ไม่พบระบบเก็บชนิดนี้ในเกมรุ่นปัจจุบัน • ใช้ปุ่มในเกมครับ") end return false
+        end
+        cancelPickup() S.lastPickupRequest=os.clock()
+        local ok,err=pcall(function() remote:FireServer(fresh.object) end)
+        if not ok then S.lastError=tostring(err) end
+        if not silent then notify(ok and "ส่งคำขอเก็บแล้ว • ตรวจผลในเกม" or "ส่งคำขอเก็บไม่ได้") end
+        return ok
+    end
+    if not promptReady(prompt,r) then
         if not silent then notify("ต้องอยู่ในระยะปุ่มเก็บของที่เกมเปิดให้ใช้ก่อนครับ") end return false
     end
     if prompt.HoldDuration>8 then if not silent then notify("ปุ่มนี้ต้องกดค้างนาน ใช้ปุ่มในเกมโดยตรงครับ") end return false end
@@ -528,7 +627,7 @@ local function pickupItem(item,silent)
     local began=pcall(function() prompt:InputHoldBegin() end)
     local deadline=os.clock()+prompt.HoldDuration+0.1
     while began and S.alive and token==S.pickupToken and actor==player.Character and h.Health>0 and promptReady(prompt,r) and os.clock()<deadline do task.wait(0.05) end
-    local completed=began and S.alive and token==S.pickupToken and actor==player.Character and h.Health>0 and os.clock()>=deadline
+    local completed=began and S.alive and token==S.pickupToken and actor==player.Character and h.Health>0 and promptReady(prompt,r) and os.clock()>=deadline
     if token==S.pickupToken then cancelPickup() end
     if not silent then notify(began and "สิ้นสุดการกดปุ่มเก็บ • ตรวจผลในกระเป๋าของเกม" or "ส่งการกดเก็บไม่ได้") end
     return completed
@@ -538,7 +637,7 @@ local function stopPull()
     S.pulledParts={}
 end
 local function pullOnce(selectedOnly,silent)
-    if not S.gameMatch then return end
+    if not S.alive or not lootReady(silent) then return end
     local h,r=character() if not h or not r or h.Health<=0 then return end
     local count,skipped=0,0
     for _,item in ipairs(filteredItems()) do
@@ -760,10 +859,11 @@ local stop
 -- 01 / Updates
 do
     local p=pages[1]
-    title(p,"อัปเดตแรก","SATURN X / DEAD RAILS / BETA 1.0.0")
-    info(p,"สำหรับแมพที่ BM ส่งมา\nDead Rails โดย Modified Frontpage Tycoons\nPlace ID: 87595889629373",C.text)
+    title(p,"อัปเดตแรก","SATURN X / DEAD RAILS / BETA 1.1.0")
+    info(p,"Dead Rails โดย RCM Games\nแก้แมพตามลิงก์ใหม่ของ BM แล้ว\nรองรับการตรวจล็อบบี้และด่านเล่น",C.text)
     info(p,"เมนู 8 หมวด • โลโก้เงิน • เสียงเดิม\n• ค้นหา ดึง และเดินหาไอเท็ม\n• กดปุ่มเก็บของเมื่ออยู่ในระยะ\n• ป้ายผู้เล่น / NPC พร้อม HP\n• บิน เดินเร็ว กระโดด และจุดตามพื้น/รถ",C.text)
-    info(p,"ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nระบบค้นหาของใช้รายชื่อเริ่มต้น ปรับชื่อได้ในหมวด 8\nการดึง การเก็บ และการเคลื่อนที่ขึ้นกับเซิร์ฟเวอร์",C.orange)
+    info(p,"เข้าเล่นรอบก่อน แล้วรันโหลดเดอร์ในด่านนั้น\nถ้าเปลี่ยนเซิร์ฟเวอร์หรือกลับล็อบบี้ ให้รันใหม่\nระบบเก็บรองรับปุ่มเก็บ และไอเท็มที่เกมระบุประเภท",C.text)
+    info(p,"ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nการดึง การเก็บ และการเคลื่อนที่ขึ้นกับเซิร์ฟเวอร์\nของที่ต้องยกหรือใส่ถุงยังต้องใช้ระบบของเกม",C.orange)
     action(p,"เริ่มค้นหาไอเท็ม →",function() selectTab(4) task.spawn(scan) end)
 end
 -- 02 / Credits
@@ -772,7 +872,7 @@ do
     title(p,"เครดิตผู้สร้าง","THE MIND BEHIND SATURN X")
     info(p,"BM\nผู้สร้างแบรนด์และผู้ออกแบบแนวคิด SATURN X",C.text)
     info(p,"โลโก้ดาวเสาร์สีเงินที่ BM เลือก\nเปิด / ปิด: window-opening-100430\nเลือก / คลิก: mouse-click-290204",C.text)
-    info(p,"แมพนี้เป็นผลงานของ Modified Frontpage Tycoons\nSATURN X เป็นงานแยก ไม่ใช่เมนูทางการของเกม")
+    info(p,"Dead Rails เป็นผลงานของ RCM Games\nSATURN X เป็นงานแยก ไม่ใช่เมนูทางการของเกม")
 end
 -- 03 / Profile
 local profileLive
@@ -798,10 +898,10 @@ end
 do
     local p=pages[4]
     title(p,"ไอเท็ม / ดึงของ","LOOT / ROUTES / PICKUP")
-    info(p,"ค้นหาของที่โหลดอยู่ใกล้ตัว แล้วเลือกจากรายการ\nปุ่มเก็บทำงานเฉพาะเมื่ออยู่ในระยะที่เกมกำหนด\nการดึงเป็นฟิสิกส์ทดลอง ยังไม่ยืนยันการเก็บเข้ากระเป๋า",C.orange)
-    toggle(p,"ป้ายชื่อและระยะไอเท็ม","itemEsp",function(v) if v and not gameReady() then return false end if v then task.spawn(scan) else clearMarkers() end return true end)
+    info(p,"เลือกไอเท็มในด่านที่โหลดอยู่ใกล้ตัว\nอาวุธ ยา กระสุน และ Bond จะใช้ประเภทที่เกมระบุ\nการเก็บแบบคำขอต้องอยู่ใน 12 studs\nการดึงเป็นฟิสิกส์ทดลอง ของอาจไม่ขยับ",C.orange)
+    toggle(p,"ป้ายชื่อและระยะไอเท็ม","itemEsp",function(v) if v and (not gameReady() or not lootReady(false)) then return false end if v then task.spawn(scan) else clearMarkers() end return true end)
     toggle(p,"ดึงของใกล้ตัวต่อเนื่อง","pull",function(v)
-        if v and not gameReady() then return false end
+        if v and (not gameReady() or not lootReady(false)) then return false end
         if v then toggleSetters.autoLoot(false,true) cancelRoute() task.spawn(scan) else stopPull() end
         return true
     end)
@@ -809,7 +909,7 @@ do
     stepper(p,"จำนวนดึงสูงสุดต่อรอบ","pullLimit",1,10,1)
     pullInfo=info(p,"ยังไม่ได้ส่งคำสั่งดึงของ")
     toggle(p,"เดินหาไอเท็มที่กรองไว้","autoLoot",function(v)
-        if v and not gameReady() then return false end
+        if v and (not gameReady() or not lootReady(false)) then return false end
         if v then
             toggleSetters.pull(false,true) toggleSetters.fly(false,true)
             S.autoLoot=true cancelRoute() local token=S.routeToken
@@ -817,10 +917,10 @@ do
         else S.autoLoot=false cancelRoute() end
         return true
     end)
-    toggle(p,"กดปุ่มเก็บเมื่อเดินถึงของ","autoPickup",function(v) if not v then cancelPickup() end return true end)
+    toggle(p,"เก็บเมื่อเดินถึงของ (ทดลอง)","autoPickup",function(v) if not v then cancelPickup() end return true end)
     routeInfo=info(p,"ระบบเดินอัตโนมัติเริ่มต้นเป็นปิด")
     stepper(p,"รัศมีค้นหา (studs)","scanRadius",40,300,20)
-    input(p,"กรองชื่อของ เช่น Coal / Cash","",function(text) S.search=string.sub(text,1,60) renderResults() end)
+    input(p,"กรองชื่อของ เช่น Coal / Bond","",function(text) S.search=string.sub(text,1,60) renderResults() end)
     action(p,"สแกน / อัปเดตรายการ",scan)
     scanInfo=info(p,"กดสแกนเพื่อค้นหาของ")
     resultBox=make("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y},p)
@@ -832,7 +932,7 @@ do
         cancelRoute() local token=S.routeToken
         spawnRoute(function() walkToItem(item,token) end,token)
     end,true)
-    action(p,"กดปุ่มเก็บของที่เลือก",function()
+    action(p,"เก็บของที่เลือก (ทดลอง)",function()
         if not gameReady() then return end
         local item=selectedItem() if not item then notify("เลือกของก่อนครับ") return end
         toggleSetters.autoLoot(false,true) cancelRoute()
@@ -923,7 +1023,9 @@ end
 local mediaInfo
 local function buildReport()
     local lines={"SATURN X DEAD RAILS "..CONFIG.Version,"place="..game.PlaceId.." universe="..game.GameId,
-        "target="..CONFIG.PlaceId.." match="..tostring(S.gameMatch),"scanned="..S.scanCount.." cap="..tostring(S.scanCapped),
+        "targetUniverse="..CONFIG.UniverseId.." match="..tostring(S.gameMatch).." lobby="..tostring(S.isLobby),
+        "runtimeItems="..tostring(runtimeFolder()~=nil).." inspected="..S.runtimeCount.." total="..S.runtimeTotal,
+        "scannedParts="..S.scanCount.." cap="..tostring(S.scanCapped),
         "items="..#S.items.." npcs="..#S.npcs.." pullAttempts="..S.attempts,"route="..S.routeStatus,"lastError="..S.lastError,
         "logo="..S.media.logo.." window="..S.media.window.." click="..S.media.click}
     for i,item in ipairs(filteredItems()) do if i<=12 then table.insert(lines,item.path.." | "..math.floor(item.distance).." studs") end end
@@ -960,8 +1062,9 @@ do
     stepper(p,"ระดับเสียงเมนู","volume",0,1,0.05,function() for _,sound in pairs(sounds) do sound.Volume=S.volume end end)
     action(p,"ทดสอบเสียงเปิด / ปิด",function() playSound("window") end,true)
     mediaInfo=info(p,"กำลังเตรียมโลโก้และเสียง…")
-    info(p,"ถ้าค้นหาของไม่เจอ ให้สร้างรายงานใกล้ของ แล้วนำชื่อจริงมาใส่ด้านล่าง\nชื่อเริ่มต้นเป็นเพียงเกณฑ์ค้นหา ยังไม่ยืนยันว่ามีครบในแมพนี้")
-    input(p,"ชื่อไอเท็ม คั่นด้วย ,",CONFIG.ItemNames,function(text)
+    info(p,"ค้นหาของจากรายการไอเท็มของเกม\nปิดการค้นหาตามประเภท เพื่อใช้เฉพาะรายชื่อด้านล่าง\nถ้าของหายจากรายการ ให้สร้างรายงานขณะยืนใกล้ของ")
+    toggle(p,"ค้นหาไอเท็มตามข้อมูลประเภทของเกม","includeRuntimeItems",function() task.defer(scan) return true end)
+    input(p,"รายชื่อไอเท็ม คั่นด้วย ,",CONFIG.ItemNames,function(text)
         local names={}
         for word in string.gmatch(string.sub(text,1,500),"[^,]+") do local n=normalize(word) if #n>=2 and #n<=50 then names[n]=true end end
         if not next(names) then notify("ใส่ชื่อไอเท็มอย่างน้อย 1 ชื่อ") return end
@@ -1054,7 +1157,7 @@ task.spawn(function()
                         cancelPickup()
                     elseif S.fly and h.SeatPart then toggleSetters.fly(false,true) end
                 else profileLive.Text="กำลังรอตัวละครเกิด…" end
-                footer.Text=string.format("DEAD RAILS BETA 1.0.0 • FPS %.0f • %s",S.fps,S.gameMatch and "แมพตรง" or "แมพไม่ตรง")
+                footer.Text=string.format("RCM / %s • FPS %.0f • %s",CONFIG.Version,S.fps,not S.gameMatch and "แมพไม่ตรง" or S.isLobby and "ล็อบบี้" or "ด่านเล่น")
             end)
         end
         task.wait(0.25)
@@ -1133,5 +1236,5 @@ task.spawn(function()
 end)
 selectTab(1)
 renderEntityList()
-if not S.gameMatch then notify("เปิด UI ได้ แต่ Place ID ไม่ตรงกับแมพที่ BM ส่งมา") end
+if not S.gameMatch then notify("เปิด UI ได้ แต่แมพนี้ไม่ใช่ Dead Rails ของ RCM Games") end
 -- End of SATURN X. Use End to stop features; Right Shift or the Saturn button to toggle UI.
