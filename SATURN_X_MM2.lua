@@ -1,17 +1,18 @@
--- SATURN X / MURDER MYSTERY 2 / v1.0.1-mm2-beta / Created by BM
+-- SATURN X / MURDER MYSTERY 2 / v1.0.2-mm2-beta / Created by BM
 -- Separate MM2 entry point; existing game files are unchanged.
 -- Official game: https://www.roblox.com/games/142823291/Murder-Mystery-2
--- Not tested in the live game. No hidden role state is claimed.
--- Player labels inspect equipped and Backpack Tool names visible to this client only.
+-- Not tested live. Role labels require actual game-returned Role data.
+-- Uses GetPlayerData and known role/round events when present; weapon observations are fallback.
+-- Role adapter reference: https://gist.github.com/xatckerx-hash/2f459781086acffc16b6a8eaf2bb7631
 -- Coin/GunDrop names are configurable heuristics, not verified live internals.
 -- Auto-walk uses Roblox pathfinding; arriving does not prove an item was collected.
 -- Logo and both MP3 files are embedded. Custom assets require runtime support.
 -- Drag the title bar; minimize to Saturn. Right Shift toggles; End stops features.
 -- Normal Roblox has no paste-script box. Client script execution is required.
--- No remote-code downloads, server RemoteEvent calls, or telemetry in this file.
+-- No remote-code downloads or telemetry. GetPlayerData is the only server query.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.1-mm2-beta",
+    Creator = "BM", Version = "1.0.2-mm2-beta",
     PlaceId = 142823291, UniverseId = 66654135,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, MaxMarkers = 24,
@@ -32,6 +33,7 @@ local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
 local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 if not player then warn("SATURN X: run on a Roblox client, not a server.") return end
@@ -47,6 +49,8 @@ local S = {
     alive = true, open = true, tab = 1, connections = {}, items = {}, markers = {}, playerMarkers = {},
     scanBusy = false, lastScan = 0, scanCapped = false, scanCount = 0,
     playerEsp = false, nameTags = true, toolColors = true, selectedPlayer = nil,
+    roleData = true, roles = {}, roleAt = 0, roleNext = 0, roleRevision = 0, roleBusy = false,
+    roleThread = nil, roleRequestAt = 0, roleRoundEnded = false, roleStatus = "เปิดหมวด 4 เพื่ออ่านบทบาทจากเกม",
     itemEsp = false, gunAlert = false, lastGuns = {}, autoCoins = false,
     routeToken = 0, walkGoal = nil, routeStatus = "ยังไม่ได้เริ่มเดิน", itemFilter = "all", selectedItem = nil,
     fly = false, flight = nil, flySpeed = 35, up = false, down = false,
@@ -131,7 +135,7 @@ local content = make("Frame", {Name = "Content", BackgroundTransparency = 1, Pos
 local footer = label(window, "BETA  •  ยังไม่ทดสอบในเกมจริง", 11, C.muted)
 footer.Position = UDim2.new(0, 18, 1, -31) footer.Size = UDim2.new(1, -36, 0, 20)
 local pages, tabs, toggleSetters = {}, {}, {}
-local tabNames = {"อัปเดตแรก", "เครดิตผู้สร้าง", "โปรไฟล์ผู้เล่น", "ผู้เล่น / อาวุธ", "เหรียญ / ปืนตก", "เคลื่อนที่", "จุด / กล้อง", "ภาพ / ตั้งค่า"}
+local tabNames = {"อัปเดตแรก", "เครดิตผู้สร้าง", "โปรไฟล์ผู้เล่น", "ผู้เล่น / บทบาท", "เหรียญ / ปืนตก", "เคลื่อนที่", "จุด / กล้อง", "ภาพ / ตั้งค่า"}
 for i, name in ipairs(tabNames) do
     local b = make("TextButton", {Name = "Tab" .. i, LayoutOrder = i, Size = UDim2.new(1, 0, 0, 37),
         BackgroundColor3 = C.panel, Text = string.format("%02d  %s", i, name), TextColor3 = C.muted,
@@ -381,7 +385,7 @@ local function startFlight()
     return true
 end
 
--- MM2 information is based on replicated objects, not hidden server role state.
+-- Weapon observations are a fallback when no fresh role data is available.
 local function normalized(text) return string.lower(tostring(text)):gsub("[%s_%-]", "") end
 local function observedEquipment(characterModel, backpack)
     local knife, gun
@@ -402,10 +406,113 @@ local function observedEquipment(characterModel, backpack)
     if gun then return "gun", "พบปืน • " .. gun end
     return "unknown", "ยังไม่ทราบอาวุธ"
 end
+-- Public MM2 implementations use GetPlayerData / UpdatePlayerData snapshots.
+-- This adapter is experimental: no role is inferred from a missing weapon.
+local ROLE_NAMES = {Murderer = "ฆาตกร", Sheriff = "นายอำเภอ", Hero = "ฮีโร่", Innocent = "ผู้บริสุทธิ์"}
+local roleSignals = {}
+local function resetRoleData(status, ended)
+    S.roles = {} S.roleAt = 0 S.roleRevision = S.roleRevision + 1
+    S.roleStatus = status S.roleRoundEnded = ended == true
+end
+local function cancelRoleRequest()
+    if S.roleThread then pcall(task.cancel, S.roleThread) end
+    S.roleThread = nil S.roleBusy = false
+end
+local function parseRoleSnapshot(data, characters)
+    if type(data) ~= "table" then return nil, 0 end
+    local out, count = {}, 0
+    for _, p in ipairs(Players:GetPlayers()) do
+        local record = data[p.Name]
+        if type(record) == "table" and ROLE_NAMES[record.Role] and
+            (record.Dead == nil or type(record.Dead) == "boolean") and
+            (record.Killed == nil or type(record.Killed) == "boolean") and
+            (not characters or characters[p] == p.Character) then
+            out[p] = {role = record.Role, inactive = record.Dead == true or record.Killed == true, character = p.Character}
+            count = count + 1
+        end
+    end
+    return out, count
+end
+local function applyRoleSnapshot(data, origin, characters)
+    local roles, count = parseRoleSnapshot(data, characters)
+    if not roles then resetRoleData("ข้อมูลบทบาทมีรูปแบบที่ยังไม่รองรับ", false) return false end
+    S.roles = roles S.roleAt = os.clock() S.roleRevision = S.roleRevision + 1
+    S.roleStatus = count > 0 and ("รับบทบาทจากเกมแล้ว " .. count .. " คน • " .. origin) or "เกมยังไม่ส่งบทบาทที่อ่านได้"
+    return true
+end
+local function bindRoleSignals()
+    local function bind(remote, handler)
+        if remote and remote:IsA("RemoteEvent") and not roleSignals[remote] then
+            roleSignals[remote] = true
+            connect(remote.OnClientEvent, function(...)
+                if S.alive and S.gameMatch then handler(...) end
+            end)
+        end
+    end
+    bind(ReplicatedStorage:FindFirstChild("UpdatePlayerData"), function(data)
+        if S.roleData and not S.roleRoundEnded then applyRoleSnapshot(data, "UpdatePlayerData") end
+    end)
+    bind(ReplicatedStorage:FindFirstChild("Fade"), function(data)
+        resetRoleData("เริ่มรอบ • รอข้อมูลบทบาท", false) S.roleNext = 0
+        if S.roleData and type(data) == "table" then applyRoleSnapshot(data, "Fade") end
+    end)
+    bind(ReplicatedStorage:FindFirstChild("RoleSelect"), function(role)
+        resetRoleData("กำลังรับบทบาทรอบใหม่", false) S.roleNext = 0
+        if S.roleData and ROLE_NAMES[role] then applyRoleSnapshot({[player.Name] = {Role = role}}, "RoleSelect") end
+    end)
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    local gameplay = remotes and remotes:FindFirstChild("Gameplay")
+    bind(gameplay and gameplay:FindFirstChild("RoundEndFade"), function()
+        resetRoleData("จบรอบ • รอรอบใหม่", true)
+    end)
+end
+local function refreshRoleData()
+    if not S.alive or not S.gameMatch or not S.roleData then return end
+    bindRoleSignals()
+    if S.roleRoundEnded then return end
+    local now = os.clock()
+    if S.roleBusy then
+        if now - S.roleRequestAt > 8 then S.roleStatus = "เกมยังไม่ตอบข้อมูลบทบาท • รอโดยไม่ส่งคำขอซ้ำ" end
+        return
+    end
+    if now < S.roleNext then return end
+    S.roleNext = now + 3
+    local getter = ReplicatedStorage:FindFirstChild("GetPlayerData", true)
+    if not getter or not getter:IsA("RemoteFunction") then
+        if now - S.roleAt > 10 then S.roleStatus = "ไม่พบ GetPlayerData • รอข้อมูลที่เกมส่งมา" end
+        return
+    end
+    local revision, characters = S.roleRevision, {}
+    for _, p in ipairs(Players:GetPlayers()) do characters[p] = p.Character end
+    S.roleBusy = true S.roleRequestAt = now
+    S.roleThread = task.defer(function()
+        local ok, data = pcall(function() return getter:InvokeServer() end)
+        S.roleBusy = false S.roleThread = nil
+        if not S.alive or not S.roleData or S.roleRevision ~= revision then return end
+        if os.clock() - now > 8 then resetRoleData("ข้อมูลตอบกลับช้า • รอข้อมูลใหม่", false) return end
+        if not ok then
+            S.lastError = tostring(data) resetRoleData("อ่านบทบาทไม่สำเร็จ", false)
+            S.roleNext = os.clock() + 10 return
+        end
+        applyRoleSnapshot(data, "GetPlayerData", characters)
+    end)
+end
+local function playerIdentity(p)
+    local record = S.roles[p]
+    if S.roleData and not S.roleRoundEnded and record and record.character == p.Character and os.clock() - S.roleAt <= 10 then
+        if record.inactive then return "inactive", "ตาย / ไม่อยู่ในรอบ • ข้อมูลเกม" end
+        return string.lower(record.role), ROLE_NAMES[record.role] .. " • ข้อมูลเกม"
+    end
+    return observedEquipment(p.Character, p:FindFirstChildOfClass("Backpack"))
+end
+
+
 local function equipmentColor(kind)
     if not S.toolColors then return C.accent end
-    if kind == "knife" then return Color3.fromRGB(255, 132, 145) end
-    if kind == "gun" then return Color3.fromRGB(126, 190, 255) end
+    if kind == "knife" or kind == "murderer" then return Color3.fromRGB(255, 132, 145) end
+    if kind == "gun" or kind == "sheriff" then return Color3.fromRGB(126, 190, 255) end
+    if kind == "hero" then return C.orange end
+    if kind == "innocent" then return C.green end
     if kind == "mixed" then return C.orange end
     return C.muted
 end
@@ -417,7 +524,7 @@ local function playerRecords()
         local h = ch and ch:FindFirstChildOfClass("Humanoid")
         local r = ch and ch:FindFirstChild("HumanoidRootPart")
         if p ~= player and h and r and h.Health > 0 then
-            local kind, text = observedEquipment(ch, p:FindFirstChildOfClass("Backpack"))
+            local kind, text = playerIdentity(p)
             table.insert(records, {player = p, char = ch, humanoid = h, root = r,
                 kind = kind, text = text, distance = localRoot and (localRoot.Position - r.Position).Magnitude or 0})
         end
@@ -431,7 +538,7 @@ local function renderPlayerList()
     for _, c in ipairs(playerConnections) do c:Disconnect() end playerConnections = {}
     for _, child in ipairs(playerList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     local records = playerRecords()
-    playerInfo.Text = "ผู้เล่นที่มีตัวละครและ HP > 0: " .. #records .. " คน\nสีบอกอาวุธที่ตรวจพบขณะนี้ ไม่ยืนยันบทบาท และอาจรวมคนในล็อบบี้"
+    playerInfo.Text = S.roleStatus .. "\nผู้เล่นที่มีตัวละครและ HP > 0: " .. #records .. " คน • อาจรวมล็อบบี้\nป้ายระบุว่าเป็นข้อมูลบทบาทจากเกม หรืออาวุธที่มองเห็น"
     for _, record in ipairs(records) do
         local p = record.player
         local b = make("TextButton", {Size = UDim2.new(1, 0, 0, 60), BackgroundColor3 = C.card, BorderSizePixel = 0,
@@ -715,7 +822,7 @@ local function lightingMode(key, enabled)
     end
 end
 local function resetFeatures()
-    for _, key in ipairs({"autoCoins", "playerEsp", "itemEsp", "gunAlert", "spectate", "fly", "speed", "jump", "bright", "noFog", "noShadows"}) do
+    for _, key in ipairs({"autoCoins", "roleData", "playerEsp", "itemEsp", "gunAlert", "spectate", "fly", "speed", "jump", "bright", "noFog", "noShadows"}) do
         if toggleSetters[key] then toggleSetters[key](false, true) end
     end
     cancelRoute() stopFlight() clearMarkers() clearPlayerMarkers() restoreSpectate()
@@ -727,11 +834,11 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  MM2 BETA 1.0.1  /  17 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  MM2 BETA 1.0.2  /  17 OCT 2026")
     info(p, "MURDER MYSTERY 2\nเมนู 8 หมวด • โลโก้เงิน • เสียงที่ BM เลือก\nลากแถบบนเพื่อย้าย • ย่อเป็นปุ่มดาวเสาร์", C.text)
     info(p, "ฟีเจอร์ MM2\n• ป้ายผู้เล่นและอาวุธที่ตรวจพบ\n• ค้นหาเหรียญ / ปืนตก / เดินตามเส้นทาง\n• บิน เดินเร็ว กระโดด และจุดบันทึก\n• กล้องดูผู้เล่นและการปรับภาพ", C.text)
-    info(p, "อัปเดต 1.0.1\nตรวจอาวุธที่ถืออยู่และที่เก็บในกระเป๋า พร้อมระบุว่าพบที่ไหน\nอ่านได้เฉพาะข้อมูลที่เกมส่งมาให้เครื่องนี้", C.text)
-    info(p, "สถานะ: ยังไม่ทดสอบในเกมจริง\nอาวุธที่ตรวจพบไม่ใช่บทบาทที่ยืนยันจากเซิร์ฟเวอร์\nชื่อไอเท็มเป็นเกณฑ์ค้นหาเบื้องต้น ต้องทดสอบกับแมพปัจจุบัน", C.orange)
+    info(p, "อัปเดต 1.0.2\nอ่านบทบาทจากข้อมูลเกมได้โดยไม่ต้องรอถืออาวุธ เมื่อเกมรองรับ\nมีสถานะการรับข้อมูลในหมวด 4 และล้างบทบาทเมื่อจบรอบ", C.text)
+    info(p, "สถานะ: ยังไม่ทดสอบในเกมจริง\nหากเกมไม่ส่งบทบาท จะใช้ป้ายอาวุธที่มองเห็นแทน\nชื่อไอเท็มเป็นเกณฑ์ค้นหาเบื้องต้น ต้องทดสอบกับแมพปัจจุบัน", C.orange)
     action(p, "ดูรายชื่อผู้เล่น →", function() selectTab(4) renderPlayerList() end)
 end
 -- 02 / Credits
@@ -765,12 +872,18 @@ end
 -- 04 / Players and observed tools
 do
     local p = pages[4]
-    title(p, "ผู้เล่น / อาวุธ", "PLAYERS  /  OBSERVED EQUIPMENT")
-    info(p, "แดง = พบมีด • ฟ้า = พบปืน\nตรวจทั้งที่ถืออยู่และในกระเป๋า เมื่อเครื่องได้รับข้อมูล\nเทา = ยังไม่ทราบอาวุธ ไม่ได้แปลว่าเป็นผู้บริสุทธิ์\nหากเกมไม่ส่งข้อมูลกระเป๋ามา จะตรวจอาวุธที่เก็บอยู่ไม่ได้", C.orange)
+    title(p, "ผู้เล่น / บทบาท", "PLAYERS  /  GAME ROLE DATA")
+    info(p, "ป้าย ‘ข้อมูลเกม’ อ่านบทบาทได้โดยไม่ต้องถืออาวุธ\nแดง = ฆาตกร • ฟ้า = นายอำเภอ • ส้ม = ฮีโร่ • เขียว = ผู้บริสุทธิ์\nหากเกมไม่ส่งบทบาท จะแสดงเฉพาะอาวุธที่พบหรือ ‘ยังไม่ทราบ’", C.orange)
+    toggle(p, "อ่านบทบาทจากข้อมูลเกม", "roleData", function(v)
+        if v and not gameReady() then return false end
+        cancelRoleRequest() resetRoleData(v and "รอข้อมูลบทบาทจากเกม" or "ปิดการอ่านบทบาทแล้ว", S.roleRoundEnded)
+        S.roleNext = 0
+        return true
+    end)
     toggle(p, "ไฮไลต์ผู้เล่นผ่านวัตถุ", "playerEsp", function(v) if v and not gameReady() then return false end if not v then clearPlayerMarkers() end return true end)
     toggle(p, "แสดงชื่อและระยะผู้เล่น", "nameTags", function() return true end)
-    toggle(p, "ใช้สีตามอาวุธที่ตรวจพบ", "toolColors", function() return true end)
-    action(p, "อัปเดตรายชื่อผู้เล่น", renderPlayerList)
+    toggle(p, "ใช้สีตามบทบาท / อาวุธ", "toolColors", function() return true end)
+    action(p, "อัปเดตบทบาท / รายชื่อผู้เล่น", function() refreshRoleData() renderPlayerList() end)
     playerInfo = info(p, "กำลังอ่านผู้เล่น…")
     playerList = make("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y}, p)
     make("UIListLayout", {Padding = UDim.new(0, 7)}, playerList)
@@ -874,6 +987,7 @@ local function buildReport()
     local lines = {"SATURN X MM2 " .. CONFIG.Version, "place=" .. game.PlaceId .. " universe=" .. game.GameId,
         "gameMatch=" .. tostring(S.gameMatch), "scanParts=" .. S.scanCount .. " cap=" .. tostring(S.scanCapped),
         "items=" .. #S.items, "route=" .. S.routeStatus, "lastError=" .. S.lastError,
+        "roleStatus=" .. S.roleStatus, "roleBusy=" .. tostring(S.roleBusy),
         "logo=" .. S.media.logo .. " window=" .. S.media.window .. " click=" .. S.media.click}
     for i, item in ipairs(nearbyItems(nil, false)) do if i <= 12 then table.insert(lines, item.kind .. " | " .. item.path .. " | " .. math.floor(item.distance)) end end
     for _, record in ipairs(playerRecords()) do table.insert(lines, "observed: @" .. record.player.Name .. " | " .. record.kind) end
@@ -951,11 +1065,13 @@ connect(UIS.WindowFocusReleased, function() S.up = false S.down = false end)
 connect(player.CharacterRemoving, function()
     for _, key in ipairs({"autoCoins", "fly", "speed", "jump", "spectate"}) do if toggleSetters[key] then toggleSetters[key](false, true) end end
     cancelRoute() S.humSnapshot = nil S.items = {} S.lastGuns = {}
+    resetRoleData("ตัวละครเกิดใหม่ • รอข้อมูลบทบาท", S.roleRoundEnded)
     S.waypoints = {} S.selectedWaypoint = nil renderWaypoints()
     clearMarkers() clearPlayerMarkers()
 end)
 connect(player.CharacterAdded, function() S.humSnapshot = nil S.lastScan = 0 end)
 connect(Players.PlayerRemoving, function(p)
+    S.roles[p] = nil
     if S.selectedPlayer == p then S.selectedPlayer = nil toggleSetters.spectate(false, true) end
 end)
 RunService:BindToRenderStep("SATURN_X_MM2_AUTOWALK", Enum.RenderPriority.Input.Value + 1, function()
@@ -985,6 +1101,7 @@ end)
 task.spawn(function()
     local statsAt, playersAt = 0, 0
     while S.alive do
+        if S.roleData and (S.playerEsp or (S.open and S.tab == 4)) then guarded(refreshRoleData) end
         if S.playerEsp then guarded(updatePlayerMarkers) end
         if S.itemEsp then guarded(updateMarkers) end
         if S.spectate then guarded(updateSpectate) end
@@ -995,7 +1112,7 @@ task.spawn(function()
             guarded(function()
                 local h, r = character()
                 if h and r then
-                    local _, equipment = observedEquipment(player.Character, player:FindFirstChildOfClass("Backpack"))
+                    local _, equipment = playerIdentity(player)
                     profileLive.Text = string.format("พลังชีวิต %.0f / %.0f\n%s\nตำแหน่ง %.0f, %.0f, %.0f\nผู้เล่น %d • FPS %.0f", h.Health, h.MaxHealth, equipment, r.Position.X, r.Position.Y, r.Position.Z, #Players:GetPlayers(), S.fps)
                     local point = S.waypoints[S.selectedWaypoint or 0]
                     waypointInfo.Text = point and string.format("%s • ห่าง %.0f studs", point.name, (r.Position - point.cf.Position).Magnitude) or "เลือกจุดเพื่อดูระยะ"
@@ -1003,7 +1120,7 @@ task.spawn(function()
                         for _, key in ipairs({"autoCoins", "fly", "spectate"}) do if S[key] then toggleSetters[key](false, true) end end
                     end
                 else profileLive.Text = "กำลังรอตัวละครเกิด…" end
-                footer.Text = string.format("MM2 BETA 1.0.1 • FPS %.0f • %s", S.fps, S.gameMatch and "MURDER MYSTERY 2" or "แมพไม่ตรง")
+                footer.Text = string.format("MM2 BETA 1.0.2 • FPS %.0f • %s", S.fps, S.gameMatch and "MURDER MYSTERY 2" or "แมพไม่ตรง")
             end)
         end
         task.wait(0.25)
