@@ -1,8 +1,8 @@
--- SATURN X / MURDER MYSTERY 2 / v1.0.0-mm2-beta / Created by BM
+-- SATURN X / MURDER MYSTERY 2 / v1.0.1-mm2-beta / Created by BM
 -- Separate MM2 entry point; existing game files are unchanged.
 -- Official game: https://www.roblox.com/games/142823291/Murder-Mystery-2
 -- Not tested in the live game. No hidden role state is claimed.
--- Player labels reflect equipped Tool names visible to this client only.
+-- Player labels inspect equipped and Backpack Tool names visible to this client only.
 -- Coin/GunDrop names are configurable heuristics, not verified live internals.
 -- Auto-walk uses Roblox pathfinding; arriving does not prove an item was collected.
 -- Logo and both MP3 files are embedded. Custom assets require runtime support.
@@ -11,7 +11,7 @@
 -- No remote-code downloads, server RemoteEvent calls, or telemetry in this file.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.0-mm2-beta",
+    Creator = "BM", Version = "1.0.1-mm2-beta",
     PlaceId = 142823291, UniverseId = 66654135,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, MaxMarkers = 24,
@@ -383,20 +383,23 @@ end
 
 -- MM2 information is based on replicated objects, not hidden server role state.
 local function normalized(text) return string.lower(tostring(text)):gsub("[%s_%-]", "") end
-local function observedEquipment(characterModel)
-    local knife, gun = false, false
-    if characterModel then
-        for _, item in ipairs(characterModel:GetChildren()) do
+local function observedEquipment(characterModel, backpack)
+    local knife, gun
+    local function inspect(container, location)
+        if not container then return end
+        for _, item in ipairs(container:GetChildren()) do
             if item:IsA("Tool") then
                 local n = normalized(item.Name)
-                if n == "knife" then knife = true end
-                if n == "gun" or n == "revolver" then gun = true end
+                if n == "knife" and not knife then knife = location end
+                if (n == "gun" or n == "revolver") and not gun then gun = location end
             end
         end
     end
-    if knife and gun then return "mixed", "พบมีดและปืน" end
-    if knife then return "knife", "พบมีดที่ถืออยู่" end
-    if gun then return "gun", "พบปืนที่ถืออยู่" end
+    inspect(characterModel, "ถืออยู่")
+    inspect(backpack, "ในกระเป๋า")
+    if knife and gun then return "mixed", "มีด: " .. knife .. " • ปืน: " .. gun end
+    if knife then return "knife", "พบมีด • " .. knife end
+    if gun then return "gun", "พบปืน • " .. gun end
     return "unknown", "ยังไม่ทราบอาวุธ"
 end
 local function equipmentColor(kind)
@@ -414,7 +417,7 @@ local function playerRecords()
         local h = ch and ch:FindFirstChildOfClass("Humanoid")
         local r = ch and ch:FindFirstChild("HumanoidRootPart")
         if p ~= player and h and r and h.Health > 0 then
-            local kind, text = observedEquipment(ch)
+            local kind, text = observedEquipment(ch, p:FindFirstChildOfClass("Backpack"))
             table.insert(records, {player = p, char = ch, humanoid = h, root = r,
                 kind = kind, text = text, distance = localRoot and (localRoot.Position - r.Position).Magnitude or 0})
         end
@@ -724,9 +727,10 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  MM2 BETA 1.0.0  /  17 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  MM2 BETA 1.0.1  /  17 OCT 2026")
     info(p, "MURDER MYSTERY 2\nเมนู 8 หมวด • โลโก้เงิน • เสียงที่ BM เลือก\nลากแถบบนเพื่อย้าย • ย่อเป็นปุ่มดาวเสาร์", C.text)
     info(p, "ฟีเจอร์ MM2\n• ป้ายผู้เล่นและอาวุธที่ตรวจพบ\n• ค้นหาเหรียญ / ปืนตก / เดินตามเส้นทาง\n• บิน เดินเร็ว กระโดด และจุดบันทึก\n• กล้องดูผู้เล่นและการปรับภาพ", C.text)
+    info(p, "อัปเดต 1.0.1\nตรวจอาวุธที่ถืออยู่และที่เก็บในกระเป๋า พร้อมระบุว่าพบที่ไหน\nอ่านได้เฉพาะข้อมูลที่เกมส่งมาให้เครื่องนี้", C.text)
     info(p, "สถานะ: ยังไม่ทดสอบในเกมจริง\nอาวุธที่ตรวจพบไม่ใช่บทบาทที่ยืนยันจากเซิร์ฟเวอร์\nชื่อไอเท็มเป็นเกณฑ์ค้นหาเบื้องต้น ต้องทดสอบกับแมพปัจจุบัน", C.orange)
     action(p, "ดูรายชื่อผู้เล่น →", function() selectTab(4) renderPlayerList() end)
 end
@@ -762,7 +766,7 @@ end
 do
     local p = pages[4]
     title(p, "ผู้เล่น / อาวุธ", "PLAYERS  /  OBSERVED EQUIPMENT")
-    info(p, "แดง = ตรวจพบ Tool มีด • ฟ้า = ตรวจพบ Tool ปืน\nเทา = ยังไม่ทราบอาวุธ ไม่ได้แปลว่าเป็นผู้บริสุทธิ์\nการซ่อนอาวุธหรือข้อมูลที่ไม่ส่งมาอาจทำให้ตรวจไม่พบ", C.orange)
+    info(p, "แดง = พบมีด • ฟ้า = พบปืน\nตรวจทั้งที่ถืออยู่และในกระเป๋า เมื่อเครื่องได้รับข้อมูล\nเทา = ยังไม่ทราบอาวุธ ไม่ได้แปลว่าเป็นผู้บริสุทธิ์\nหากเกมไม่ส่งข้อมูลกระเป๋ามา จะตรวจอาวุธที่เก็บอยู่ไม่ได้", C.orange)
     toggle(p, "ไฮไลต์ผู้เล่นผ่านวัตถุ", "playerEsp", function(v) if v and not gameReady() then return false end if not v then clearPlayerMarkers() end return true end)
     toggle(p, "แสดงชื่อและระยะผู้เล่น", "nameTags", function() return true end)
     toggle(p, "ใช้สีตามอาวุธที่ตรวจพบ", "toolColors", function() return true end)
@@ -991,7 +995,7 @@ task.spawn(function()
             guarded(function()
                 local h, r = character()
                 if h and r then
-                    local _, equipment = observedEquipment(player.Character)
+                    local _, equipment = observedEquipment(player.Character, player:FindFirstChildOfClass("Backpack"))
                     profileLive.Text = string.format("พลังชีวิต %.0f / %.0f\n%s\nตำแหน่ง %.0f, %.0f, %.0f\nผู้เล่น %d • FPS %.0f", h.Health, h.MaxHealth, equipment, r.Position.X, r.Position.Y, r.Position.Z, #Players:GetPlayers(), S.fps)
                     local point = S.waypoints[S.selectedWaypoint or 0]
                     waypointInfo.Text = point and string.format("%s • ห่าง %.0f studs", point.name, (r.Position - point.cf.Position).Magnitude) or "เลือกจุดเพื่อดูระยะ"
@@ -999,7 +1003,7 @@ task.spawn(function()
                         for _, key in ipairs({"autoCoins", "fly", "spectate"}) do if S[key] then toggleSetters[key](false, true) end end
                     end
                 else profileLive.Text = "กำลังรอตัวละครเกิด…" end
-                footer.Text = string.format("MM2 BETA 1.0.0 • FPS %.0f • %s", S.fps, S.gameMatch and "MURDER MYSTERY 2" or "แมพไม่ตรง")
+                footer.Text = string.format("MM2 BETA 1.0.1 • FPS %.0f • %s", S.fps, S.gameMatch and "MURDER MYSTERY 2" or "แมพไม่ตรง")
             end)
         end
         task.wait(0.25)
