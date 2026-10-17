@@ -1,4 +1,4 @@
--- SATURN X / 100 Days At Sea / v1.0.0-beta / Created by BM
+-- SATURN X / 100 Days At Sea / v1.0.1-beta / Created by BM
 -- Research: https://www.roblox.com/games/70411440483149/100-Days-At-Sea
 -- This build has NOT been tested inside the live experience.
 -- Item names/folders are conservative heuristics, NOT verified game internals.
@@ -8,7 +8,7 @@
 -- Standard Studio: use a LocalScript and set your own permitted asset IDs below.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.0-beta",
+    Creator = "BM", Version = "1.0.1-beta",
     PlaceId = 70411440483149, UniverseId = 9167377564,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
@@ -549,7 +549,7 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.0 BETA  /  17 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.1 BETA  /  17 OCT 2026")
     info(p, "SILVER ORBIT\nเมนู 8 หมวด • ลากแถบด้านบนเพื่อย้าย\nย่อเป็นปุ่มดาวเสาร์ • รองรับเมาส์และสัมผัส", C.text)
     info(p, "ในเวอร์ชันนี้\n• โลโก้และเสียงที่ BM ส่งมา\n• รูปอวตาร ชื่อ และข้อมูลผู้เล่นจริง\n• ค้นหาทรัพยากร / ป้ายระยะ / เลือกของ\n• ดึงของแบบทดลอง / บิน / จุดบันทึก", C.text)
     info(p, "สถานะ: ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nดึงของใช้ฟิสิกส์ฝั่งเครื่อง ชื่อและโฟลเดอร์ของเป็นเกณฑ์ค้นหาเบื้องต้น จึงอาจตรวจไม่พบหรือขยับไม่ได้", C.orange)
@@ -840,6 +840,10 @@ task.spawn(function()
         if id and S.alive then
             local target
             if kind == "logo" then
+                -- Remove both placeholders as soon as the real image is assigned.
+                -- Rendering may succeed even when PreloadAsync fails or returns late.
+                logoFallback.Visible = false
+                floatingFallback.Visible = false
                 logo.Image = id floating.Image = id target = logo
             else sounds[kind].SoundId = id target = sounds[kind] end
             S.media[kind] = "กำลังตรวจการโหลด"
@@ -848,7 +852,6 @@ task.spawn(function()
                 if not S.alive then return end
                 if ok and target.IsLoaded then
                     S.media[kind] = "พร้อม"
-                    if kind == "logo" then logoFallback.Visible = false floatingFallback.Visible = false end
                     if kind == "window" and S.open then playSound("window") end
                 else S.media[kind] = "ไม่สำเร็จ / runtime หรือ asset permission ไม่รองรับ" end
                 updateMediaInfo()
