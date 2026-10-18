@@ -28,7 +28,7 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.2.2-orbit
+-- SATURN X media / BM / 1.3.0-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
@@ -458,10 +458,10 @@ end
 return InstallMotion
 end)()
 local InstallOrbit = (function()
--- SATURN X Orbit 1.0.2 / BM
+-- SATURN X Orbit 1.1.0 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.0.2" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.1.0" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -475,8 +475,8 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.0.2",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
-    M.Orbit=Orbit;M.Build="1.2.2-orbit"
+    local Orbit={Version="1.1.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
+    M.Orbit=Orbit;M.Build="1.3.0-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -595,11 +595,11 @@ local function InstallOrbit(M)
         local function connect(signal,fn)
             local c=signal:Connect(fn);table.insert(C.Connections,c);return c
         end
-        local function animate(o,props,duration)
+        local function animate(o,props,duration,easing)
             if C.Tweens[o] then C.Tweens[o]:Cancel();C.Tweens[o]=nil end
             if not C.Alive or not o.Parent then return end
             if not moving() or duration==0 then for k,v in pairs(props) do o[k]=v end;return end
-            local t=TweenService:Create(o,TweenInfo.new(duration or .2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props)
+            local t=TweenService:Create(o,TweenInfo.new(duration or .2,easing or Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props)
             C.Tweens[o]=t;t:Play()
         end
         function C:Cancel()
@@ -611,6 +611,32 @@ local function InstallOrbit(M)
         local function later(serial,seconds,fn)
             if not moving() then fn();return end
             task.delay(seconds,function() if C.Alive and C.Serial==serial then fn() end end)
+        end
+        -- Animate page content independently of the window's responsive UIScale.
+        local pagePosition=content and content.Position
+        local pageScale=content and not content:FindFirstChildOfClass("UIScale") and
+            own("UIScale",{Name="OrbitPageScale",Scale=1},content) or nil
+        local function resetPage()
+            if content and content.Parent then content.Position=pagePosition end
+            if pageScale and pageScale.Parent then pageScale.Scale=1 end
+            options.Window.GroupTransparency=0
+        end
+        local function revealPage()
+            resetPage()
+            if not moving() then return end
+            options.Window.GroupTransparency=1
+            if content and content.Parent then
+                content.Position=UDim2.new(pagePosition.X.Scale,pagePosition.X.Offset,pagePosition.Y.Scale,pagePosition.Y.Offset+12)
+                animate(content,{Position=pagePosition},.32,Enum.EasingStyle.Quint)
+            end
+            if pageScale then pageScale.Scale=.965;animate(pageScale,{Scale=1},.34,Enum.EasingStyle.Quint) end
+            animate(options.Window,{GroupTransparency=0},.22)
+        end
+        local function planetScale(index)
+            if not moving() then return 1 end
+            if C.Selected==index then return 1.10 end
+            local p=C.Planets[index]
+            return p and C.Hover[p.Button] and 1.05 or 1
         end
         local stage=own("Frame",{Name="SATURN_X_Orbit",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
             Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(600,600),Visible=false,ZIndex=20},options.Root)
@@ -686,10 +712,10 @@ local function InstallOrbit(M)
             local rippleLine=own("UIStroke",{Color=colors[i],Transparency=1,Thickness=2},ripple)
             C.Planets[i]={Button=b,Scale=scale,Fallback=fallback,Image=art,Outline=lineSelected,Ripple=ripple,RippleLine=rippleLine,Radius=radius}
             connect(b.Activated,function() C:Tap(i) end)
-            connect(b.MouseEnter,function() C.Hover[b]=true end)
-            connect(b.MouseLeave,function() C.Hover[b]=nil;animate(scale,{Scale=1},.12) end)
-            connect(b.SelectionGained,function() C.Hover[b]=true end)
-            connect(b.SelectionLost,function() C.Hover[b]=nil end)
+            connect(b.MouseEnter,function() C.Hover[b]=true;animate(scale,{Scale=planetScale(i)},.18) end)
+            connect(b.MouseLeave,function() C.Hover[b]=nil;animate(scale,{Scale=planetScale(i)},.18) end)
+            connect(b.SelectionGained,function() C.Hover[b]=true;animate(scale,{Scale=planetScale(i)},.18) end)
+            connect(b.SelectionLost,function() C.Hover[b]=nil;animate(scale,{Scale=planetScale(i)},.18) end)
             connect(b.InputBegan,function(input)
                 if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
                     C.Pointers[input]=true
@@ -744,7 +770,14 @@ local function InstallOrbit(M)
                 p.Button:SetAttribute("CategoryDetail",tr(details[options.Names[i]] or strings.default))
                 p.Outline.Transparency=i==selected and .12 or 1
                 C.Rings[i].Stroke.Transparency=i==selected and .42 or .80
+                animate(p.Scale,{Scale=planetScale(i)},.32,Enum.EasingStyle.Back)
                 if not moving() then p.Scale.Scale=1;p.RippleLine.Transparency=1 end
+            end
+            if not moving() and self.State=="category" then
+                for _,o in ipairs({options.Window,content,pageScale}) do
+                    if C.Tweens[o] then C.Tweens[o]:Cancel();C.Tweens[o]=nil end
+                end
+                resetPage()
             end
         end
         local function wave(index)
@@ -757,7 +790,9 @@ local function InstallOrbit(M)
             p.Ripple.Size=UDim2.fromOffset(45,45);p.RippleLine.Transparency=.12
             animate(p.Ripple,{Size=UDim2.fromOffset(112,112)},.55)
             animate(p.RippleLine,{Transparency=1},.55)
-            animate(p.Scale,{Scale=1},.2)
+            if C.Tweens[p.Scale] then C.Tweens[p.Scale]:Cancel() end
+            p.Scale.Scale=.94
+            animate(p.Scale,{Scale=planetScale(index)},.32,Enum.EasingStyle.Back)
         end
         function C:Tap(index)
             if not self.Alive or self.State~="orbit" or not self.Planets[index] then return end
@@ -766,11 +801,13 @@ local function InstallOrbit(M)
             self:Cancel();self.State="category";stage.Visible=false;portal.Visible=false
             options.OnSelect(index)
             options.Window.Visible=true;options.Window.GroupTransparency=0;options.Floating.Visible=false
+            revealPage()
             options.OnVisible(true);options.PlayWindow()
         end
         function C:Open(sound)
             if not self.Alive then return end
             local serial=self:Cancel();self.State="opening";self.Selected=nil
+            resetPage()
             options.OnVisible(true);options.Window.Visible=false;options.Window.GroupTransparency=0;options.Floating.Visible=false
             stage.Visible=true;disk.Visible=true;disk.GroupTransparency=moving() and 1 or 0;diskScale.Scale=moving() and .82 or 1
             portal.Visible=moving();portalScale.Scale=.3;portalArt.ImageTransparency=0
@@ -781,9 +818,13 @@ local function InstallOrbit(M)
                 r.Scale.Scale=moving() and .3 or 1;r.Stroke.Transparency=moving() and 1 or .80
                 later(serial,.12+i*.035,function() animate(r.Scale,{Scale=1},.32);animate(r.Stroke,{Transparency=.80},.32) end)
             end
+            for i,p in ipairs(self.Planets) do
+                p.Scale.Scale=moving() and .55 or 1
+                later(serial,.10+i*.025,function() animate(p.Scale,{Scale=1},.34,Enum.EasingStyle.Back) end)
+            end
             if sound then options.PlayWindow() end
             animate(portalScale,{Scale=1.45},.36)
-            later(serial,.12,function() animate(disk,{GroupTransparency=0},.34);animate(diskScale,{Scale=1},.4) end)
+            later(serial,.12,function() animate(disk,{GroupTransparency=0},.34);animate(diskScale,{Scale=1},.4,Enum.EasingStyle.Quint) end)
             later(serial,.24,function() animate(portalArt,{ImageTransparency=1},.28);animate(portalFallback,{BackgroundTransparency=1},.28) end)
             later(serial,.62,function() portal.Visible=false;self.State="orbit" end)
         end
@@ -791,9 +832,15 @@ local function InstallOrbit(M)
             if not self.Alive then return end
             if value then self:Open(true);return end
             if self.State=="closed" or self.State=="collapsing" then return end
+            local fromPage=self.State=="category" and options.Window.Visible
             local serial=self:Cancel();self.State="collapsing";self.Selected=nil
-            options.OnVisible(false);options.Window.Visible=false;options.Floating.Visible=true;options.PlayWindow()
-            stage.Visible=true;disk.Visible=true;portal.Visible=moving()
+            options.OnVisible(false);options.Floating.Visible=true;options.PlayWindow()
+            if fromPage and moving() then
+                animate(options.Window,{GroupTransparency=1},.16)
+                if pageScale then animate(pageScale,{Scale=.965},.18,Enum.EasingStyle.Quint) end
+                later(serial,.18,function() options.Window.Visible=false;resetPage() end)
+            else options.Window.Visible=false;resetPage() end
+            stage.Visible=true;disk.Visible=not fromPage;portal.Visible=moving()
             portalArt.Position=UDim2.fromScale(0,-2)
             portalArt.ImageTransparency=0;portalScale.Scale=.6
             portalFallback.BackgroundColor3=Color3.fromRGB(0,0,0);portalFallback.BackgroundTransparency=0
@@ -808,7 +855,7 @@ local function InstallOrbit(M)
         connect(UIS.InputEnded,function(input)
             if C.Pointers[input] then
                 C.Pointers[input]=nil
-                for _,p in ipairs(C.Planets) do animate(p.Scale,{Scale=1},.12) end
+                for i,p in ipairs(C.Planets) do animate(p.Scale,{Scale=planetScale(i)},.22,Enum.EasingStyle.Back) end
             end
         end)
         connect(UIS.WindowFocusReleased,function()
@@ -828,6 +875,7 @@ local function InstallOrbit(M)
             self:Cancel();self.Alive=false;Orbit.Controllers[options.Gui]=nil
             for _,c in ipairs(self.Connections) do c:Disconnect() end;self.Connections={}
             stage:Destroy();returnButton:Destroy();miniClip:Destroy();miniFallback:Destroy()
+            resetPage();if pageScale then pageScale:Destroy() end
             if options.Minimize.Parent then options.Minimize.Text=minText end
             if sidebar and sidebar.Parent then sidebar.Visible=savedSidebar end
             if content and content.Parent then content.Position=savedPosition;content.Size=savedSize end
