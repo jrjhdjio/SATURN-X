@@ -44,7 +44,7 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.2.0-orbit
+-- SATURN X media / BM / 1.2.1-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
@@ -474,15 +474,25 @@ end
 return InstallMotion
 end)()
 local InstallOrbit = (function()
--- SATURN X Orbit 1.0.0 / BM
+-- SATURN X Orbit 1.0.1 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.0.1" then return M.Orbit end
+    local previous=M.Orbit
+    local upgrades={}
+    if previous and previous.Alive then
+        for _,controller in pairs(previous.Controllers or {}) do
+            if controller.Alive then
+                table.insert(upgrades,{Legacy=controller,Options=controller.Options,State=controller.State,Selected=controller.Selected})
+            end
+        end
+        previous:Destroy()
+    end
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.0.0",Alive=true,Controllers={},Assets={},Jobs={}}
-    M.Orbit=Orbit;M.Build="1.2.0-orbit"
+    local Orbit={Version="1.0.1",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
+    M.Orbit=Orbit;M.Build="1.2.1-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -631,12 +641,17 @@ local function InstallOrbit(M)
         end
         local function sprite(parent,index,size)
             local col=(index-1)%4;local row=math.floor((index-1)/4)
-            local y=row==0 and 0 or (row==1 and 341 or 683)
+            -- Crop in UI space, not texture pixels. Local textures can be resampled
+            -- before rendering; fixed ImageRect coordinates then select adjacent cells.
+            -- A 4 x 3 atlas at 1536 x 1024 has cells with aspect ratio 9:8.
+            local clip=own("Frame",{Name="OrbitClip"..index,BackgroundTransparency=1,BorderSizePixel=0,
+                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
+                Size=UDim2.fromOffset(size,size*8/9),ClipsDescendants=true,ZIndex=7},parent)
             local icon=own("ImageLabel",{Name="OrbitSprite"..index,Image="",BackgroundTransparency=1,
-                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(size,size),
-                ImageRectOffset=Vector2.new(col*384,y),ImageRectSize=Vector2.new(384,row==1 and 342 or 341),
-                ScaleType=Enum.ScaleType.Fit,ZIndex=7},parent)
-            table.insert(C.Sprites,icon);return icon
+                AnchorPoint=Vector2.new(0,0),Position=UDim2.fromScale(-col,-row),Size=UDim2.fromScale(4,3),
+                ImageRectOffset=Vector2.new(0,0),ImageRectSize=Vector2.new(0,0),
+                ScaleType=Enum.ScaleType.Stretch,ZIndex=7},clip)
+            table.insert(C.Sprites,icon);return icon,clip
         end
         local core=own("TextButton",{Name="CenterLogo",Text="",AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(13,19,30),
             BackgroundTransparency=.08,BorderSizePixel=0,Position=UDim2.fromOffset(184,184),Size=UDim2.fromOffset(232,232),ZIndex=5},disk)
@@ -706,9 +721,9 @@ local function InstallOrbit(M)
         connect(returnButton.Activated,function() C:Open(true) end)
         local minText=options.Minimize.Text
         options.Minimize.Text=""
-        local miniArt=sprite(options.Minimize,9,48)
+        local miniArt,miniClip=sprite(options.Minimize,9,48)
         local miniFallback=text(options.Minimize,"BlackHoleFallback",0,0,36,36,21);miniFallback.Text="◉"
-        C.ReturnButton=returnButton;C.MiniArt=miniArt;C.MiniFallback=miniFallback
+        C.ReturnButton=returnButton;C.MiniArt=miniArt;C.MiniClip=miniClip;C.MiniFallback=miniFallback
         local function layout()
             local available=options.Root.AbsoluteSize
             if available.X>0 and available.Y>0 then fit.Scale=math.min(1,(available.X-16)/600,(available.Y-16)/600) end
@@ -762,7 +777,7 @@ local function InstallOrbit(M)
             options.OnVisible(true);options.Window.Visible=false;options.Window.GroupTransparency=0;options.Floating.Visible=false
             stage.Visible=true;disk.Visible=true;disk.GroupTransparency=moving() and 1 or 0;diskScale.Scale=moving() and .82 or 1
             portal.Visible=moving();portalScale.Scale=.3;portalArt.ImageTransparency=0
-            portalArt.ImageRectOffset=Vector2.new(384,683);portalArt.ImageRectSize=Vector2.new(384,341)
+            portalArt.Position=UDim2.fromScale(-1,-2)
             portalFallback.BackgroundColor3=silver;portalFallback.BackgroundTransparency=.35
             self:Refresh();layout();self:PositionPlanets()
             for i,r in ipairs(self.Rings) do
@@ -782,7 +797,7 @@ local function InstallOrbit(M)
             local serial=self:Cancel();self.State="collapsing";self.Selected=nil
             options.OnVisible(false);options.Window.Visible=false;options.Floating.Visible=true;options.PlayWindow()
             stage.Visible=true;disk.Visible=true;portal.Visible=moving()
-            portalArt.ImageRectOffset=Vector2.new(0,683);portalArt.ImageRectSize=Vector2.new(384,341)
+            portalArt.Position=UDim2.fromScale(0,-2)
             portalArt.ImageTransparency=0;portalScale.Scale=.6
             portalFallback.BackgroundColor3=Color3.fromRGB(0,0,0);portalFallback.BackgroundTransparency=0
             animate(diskScale,{Scale=.08},.3);animate(disk,{GroupTransparency=1},.3)
@@ -815,7 +830,7 @@ local function InstallOrbit(M)
             if not self.Alive then return end
             self:Cancel();self.Alive=false;Orbit.Controllers[options.Gui]=nil
             for _,c in ipairs(self.Connections) do c:Disconnect() end;self.Connections={}
-            stage:Destroy();returnButton:Destroy();miniArt:Destroy();miniFallback:Destroy()
+            stage:Destroy();returnButton:Destroy();miniClip:Destroy();miniFallback:Destroy()
             if options.Minimize.Parent then options.Minimize.Text=minText end
         end
         connect(options.Gui.Destroying,function() C:Destroy() end)
@@ -827,16 +842,11 @@ local function InstallOrbit(M)
             C.AtlasFailed=not id
             if id then
                 for _,icon in ipairs(C.Sprites) do icon.Image=id end
-                -- Keep fallback planets until the actual texture reports loaded.
-                local function loaded()
-                    if not C.Alive then return end
-                    local ready=C.Planets[1].Image.IsLoaded
-                    for _,p in ipairs(C.Planets) do p.Fallback.Visible=not ready end
-                    blackFallback.Visible=not ready;miniFallback.Visible=not ready
-                    portalFallback.Visible=not ready
-                    C.AtlasFailed=not ready;C:Refresh()
-                end
-                connect(C.Planets[1].Image:GetPropertyChangedSignal("IsLoaded"),loaded);loaded()
+                -- Registration follows byte/signature validation. IsLoaded can stay
+                -- false for local runtime URIs even while the image is visible.
+                -- Never draw placeholders underneath successfully assigned artwork.
+                for _,p in ipairs(C.Planets) do p.Fallback.Visible=false end
+                blackFallback.Visible=false;miniFallback.Visible=false;portalFallback.Visible=false
             end
             C:Refresh()
         end)
@@ -859,6 +869,23 @@ local function InstallOrbit(M)
     Orbit:Asset("wave",function(id)
         if id and Orbit.Alive then Orbit.Wave=own("Sound",{Name="OrbitRingWave",SoundId=id,Volume=1,SoundGroup=M.EffectsGroup},M.Audio) end
     end)
+    for _,entry in ipairs(upgrades) do
+        local options=entry.Options
+        if options and options.Gui.Parent and options.Window.Parent then
+            local replacement=Orbit:Create(options)
+            -- Existing entry scripts capture their controller in setOpen closures.
+            -- Forward those handles so updating one script also repairs other live menus.
+            entry.Legacy.SetOpen=function(_,value) return replacement:SetOpen(value) end
+            entry.Legacy.Open=function(_,sound) return replacement:Open(sound) end
+            if entry.State=="category" then
+                replacement.State="category";replacement.Selected=entry.Selected
+                options.Window.Visible=true;options.Floating.Visible=false;options.OnVisible(true)
+                replacement:Refresh()
+            elseif entry.State=="closed" or entry.State=="collapsing" then
+                options.Window.Visible=false;options.Floating.Visible=true;options.OnVisible(false)
+            else replacement:Open(false) end
+        end
+    end
     return Orbit
 end
 return InstallOrbit

@@ -99,7 +99,7 @@ local install=assert(loadfile(path))();local orbit=install(M)
 local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.2.0-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.2.1-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -187,12 +187,42 @@ local a,b;orbit:Asset('atlas',function(id)a=id end);orbit:Asset('atlas',function
 assert(a=='local://verified-asset' and b==a and registerCalls==1 and httpCalls==2)
 local cached;orbit:Asset('atlas',function(id)cached=id end);assert(cached==a and httpCalls==2)
 pass('invalid asset rejection, coalesced requests and successful cache reuse')
-local c2=orbit:Create(options);flush();assert(c2.AtlasFailed)
-c2.Planets[1].Image.IsLoaded=true
-assert(not c2.AtlasFailed and not c2.Planets[1].Fallback.Visible)
-assert(c2.Planets[8].Image.ImageRectOffset.X==1152 and c2.Planets[8].Image.ImageRectOffset.Y==341)
-assert(c2.Planets[8].Image.ImageRectSize.Y==342)
-pass('fallback persists until texture is loaded; sprite coordinates match atlas cells')
+local c2=orbit:Create(options);flush()
+for _,p in ipairs(c2.Planets)do
+    p.Image.IsLoaded=false
+    assert(not c2.AtlasFailed and not p.Fallback.Visible)
+end
+assert(not c2.MiniFallback.Visible)
+pass('validated local artwork replaces fallback even if IsLoaded stays false')
+for _,icon in ipairs(c2.Sprites)do
+    local index=tonumber(icon.Name:match('%d+'));local col=(index-1)%4;local row=math.floor((index-1)/4)
+    assert(icon.Parent.ClipsDescendants and icon.Size.X.Scale==4 and icon.Size.Y.Scale==3)
+    assert(icon.Position.X.Scale==-col and icon.Position.Y.Scale==-row)
+    assert(icon.ImageRectOffset.X==0 and icon.ImageRectOffset.Y==0 and icon.ImageRectSize.X==0 and icon.ImageRectSize.Y==0)
+    assert(math.abs(icon.Parent.Size.X.Offset/icon.Parent.Size.Y.Offset-9/8)<1e-9)
+    for _,resolution in ipairs({{1536,1024},{1024,683},{1024,682},{768,512},{512,341}})do
+        local x=-icon.Position.X.Scale/icon.Size.X.Scale*resolution[1]
+        local y=-icon.Position.Y.Scale/icon.Size.Y.Scale*resolution[2]
+        assert(math.abs(x/resolution[1]-col/4)<1e-9)
+        assert(math.abs(y/resolution[2]-row/3)<1e-9)
+        assert(x+resolution[1]/4<=resolution[1]+1e-9 and y+resolution[2]/3<=resolution[2]+1e-9)
+    end
+end
+c2:Open(false);runDelayed()
+local portalArt=descendantsNamed(c2.Stage,'OrbitSprite10')
+assert(portalArt.Position.X.Scale==-1 and portalArt.Position.Y.Scale==-2)
+c2:SetOpen(false);assert(portalArt.Position.X.Scale==0 and portalArt.Position.Y.Scale==-2);runDelayed()
+pass('all 10 artwork cells and both portal states retain bounds across 5 decoded texture sizes')
+local old=c2;local oldService=orbit;local oldStage=c2.Stage
+c2:Open(false);runDelayed();c2:Tap(4);c2:Tap(4)
+orbit.Version='1.0.0';orbit=install(M);flush()
+local upgraded=orbit.Controllers[root]
+assert(orbit~=oldService and not oldService.Alive and oldStage.Parent==nil)
+assert(upgraded and upgraded.State=='category' and upgraded.Selected==4 and window.Visible)
+old:SetOpen(false);runDelayed();assert(upgraded.State=='closed' and floating.Visible)
+old:SetOpen(true);runDelayed();assert(upgraded.State=='orbit' and not floating.Visible)
+assert(orbit.Assets.atlas==a and upgraded.Planets[1].Image.Image==a)
+pass('live service upgrade replaces old visuals and forwards previously captured toggle handles')
 orbit:Destroy();assert(not orbit.Alive and not c2.Alive and next(orbit.Controllers)==nil)
 M:Destroy();flush();runDelayed();pass('shared service cleanup is safe after controller cleanup')
 print(string.format('PASS %d orbital UI groups (mock Roblox APIs; no live client/render verification)',passed))
