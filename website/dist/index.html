@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d10">
+  <meta name="description" content="คลังสคริปต์ SATURN X โดย BM ค้นหา เก็บรายการโปรด และคัดลอกสคริปต์ที่ต้องการได้ในที่เดียว">
+  <title>SATURN X — Script Vault</title>
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#library">ข้ามไปคลังสคริปต์</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="SATURN X หน้าหลัก"><img src="assets/mark.svg" alt="" width="40" height="40"><span>SATURN <b>X</b><small>SCRIPT VAULT</small></span></a>
+      <nav aria-label="เมนูหลัก">
+        <button class="nav-link active" data-view="all" aria-current="page">คลังสคริปต์</button>
+        <button class="nav-link" data-view="favorites">รายการโปรด <span class="tiny-count" id="favorite-count">0</span></button>
+        <button class="nav-link" id="guide-button">วิธีใช้งาน</button>
+      </nav>
+      <a class="github-link" href="https://github.com/jrjhdjio/SATURN-X" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.2-4-2-6-2m12 4v-3.4c0-1 .1-1.4-.5-2 3.3-.4 6.5-1.6 6.5-7a5.4 5.4 0 0 0-1.5-3.7A5 5 0 0 0 19.4 1S18.2.6 15.5 2.5a13.2 13.2 0 0 0-7 0C5.8.6 4.6 1 4.6 1a5 5 0 0 0-.1 3.9A5.4 5.4 0 0 0 3 8.6c0 5.4 3.2 6.6 6.5 7-.6.6-.6 1.2-.5 2V21"/></svg><span>GitHub</span><span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> THE SATURN X COLLECTION <span class="edition">/ 001</span></p>
+        <h1 id="hero-title">ทุกสคริปต์<br>ในวงโคจรเดียว<span class="title-dot">.</span></h1>
+        <p class="hero-description">รวมสคริปต์ที่คุณใช้ ในพื้นที่ที่เป็นคุณ<br>เลือก คัดลอก แล้วไปต่อกับ SATURN X</p>
+        <div class="hero-actions"><a class="button primary" href="#library">สำรวจสคริปต์ <span aria-hidden="true">↗</span></a><button class="button text-button" data-action="add">＋ เพิ่มสคริปต์ของฉัน</button></div>
+        <div class="hero-bottom"><span><strong>10</strong> SATURN SCRIPTS</span><span class="mini-divider"></span><span>CRAFTED BY <b>BM</b></span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <span class="orbit-caption top">SATURN SYSTEM<br><b>06 / RING COLLECTION</b></span>
+        <img src="assets/saturn.svg" alt="" width="760" height="600">
+        <div class="art-cross">+</div>
+        <span class="orbit-caption bottom">A SPACE FOR YOUR SCRIPTS<span>✦</span></span>
+      </div>
+    </section>
+
+    <section class="featured" aria-label="สคริปต์ที่เพิ่มล่าสุด">
+      <div class="featured-icon" aria-hidden="true">✦</div>
+      <div class="featured-copy"><span class="eyebrow">LATEST IN ORBIT <span class="new-label">NEW</span></span><h2>SATURN X AVATAR</h2><p>ลองชุดจาก Username พร้อมตัวอย่าง 3 มิติ — เห็นเฉพาะเครื่องเรา</p></div>
+      <button class="button outline" data-detail="avatar">ดูสคริปต์ <span aria-hidden="true">↗</span></button>
+    </section>
+
+    <section id="library" class="library" aria-labelledby="library-title">
+      <div class="section-heading"><div><p class="eyebrow">YOUR SCRIPT LIBRARY</p><h2 id="library-title">คลังสคริปต์ <span id="total-count">10</span></h2></div><div class="library-tools"><button class="icon-button" id="backup-button" aria-label="สำรองและนำเข้าคลัง" title="สำรองและนำเข้าคลัง"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg></button><button class="button primary small" data-action="add"><span>＋</span> เพิ่มสคริปต์</button></div></div>
+      <div class="search-row"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" id="search" placeholder="ค้นหาชื่อเกม สคริปต์ หรือฟังก์ชัน..." aria-label="ค้นหาสคริปต์" autocomplete="off"><kbd>/</kbd></label><label class="sort-label"><span class="sr-only">เรียงสคริปต์</span><select id="sort"><option value="default">ลำดับแนะนำ</option><option value="name">ชื่อ A–Z</option><option value="custom">ของฉันก่อน</option></select></label></div>
+      <div class="filter-row"><div id="categories" class="categories" role="group" aria-label="กรองหมวดหมู่"></div><div class="layout-switch" role="group" aria-label="รูปแบบรายการ"><button class="icon-button active" data-layout="grid" aria-label="ตาราง" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/></svg></button><button class="icon-button" data-layout="list" aria-label="รายการ" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01"/></svg></button></div></div>
+      <div class="result-row"><p id="result-count" role="status" aria-live="polite">แสดง 10 สคริปต์</p><span id="view-note">เลือกสิ่งที่ใช่ แล้วเก็บไว้ในวงโคจรของคุณ</span></div>
+      <div id="script-grid" class="script-grid"></div>
+      <div id="empty-state" class="empty-state" hidden><div aria-hidden="true">⌕</div><h3 id="empty-title">ยังไม่พบสคริปต์</h3><p id="empty-description">ลองค้นหาด้วยคำอื่น หรือเลือกหมวดทั้งหมด</p><button class="button outline" id="clear-filters">แสดงสคริปต์ทั้งหมด</button></div>
+      <noscript><p class="notice">เปิด JavaScript เพื่อค้นหาและคัดลอกสคริปต์ หรือ <a href="https://github.com/jrjhdjio/SATURN-X">ดูไฟล์ทั้งหมดบน GitHub</a></p></noscript>
+    </section>
+
+    <section class="closing-banner"><div class="closing-orbit" aria-hidden="true"><img src="assets/mark.svg" alt="" width="60" height="60"></div><div><h2>คลังของคุณ สไตล์ของคุณ</h2><p>เพิ่มสคริปต์ที่ใช้บ่อย กดดาวเก็บไว้ แล้วกลับมาเจอกันที่เดิม</p></div><button class="button outline" data-action="add">สร้างคอลเลกชันของฉัน <span aria-hidden="true">＋</span></button></section>
+    <footer><a class="footer-brand" href="#">SATURN X <span>BY BM</span></a><p>รายการที่เพิ่มและรายการโปรดเก็บในเบราว์เซอร์นี้</p><a href="https://github.com/jrjhdjio/SATURN-X" target="_blank" rel="noopener noreferrer">SOURCE ON GITHUB ↗</a></footer>
+  </main>
+
+  <dialog id="detail-dialog" class="dialog detail-dialog" aria-labelledby="detail-title"><button class="icon-button dialog-close" data-close aria-label="ปิดรายละเอียด">×</button><div id="detail-content"></div></dialog>
+  <dialog id="add-dialog" class="dialog" aria-labelledby="add-title"><button class="icon-button dialog-close" data-close aria-label="ปิดฟอร์ม">×</button><p class="eyebrow">MAKE IT YOURS</p><h2 id="add-title">เพิ่มสคริปต์ของฉัน</h2><p class="dialog-subtitle">บันทึกไว้ในเบราว์เซอร์นี้ ส่งออกสำรองได้จากปุ่มข้าง “เพิ่มสคริปต์”</p><form id="script-form"><input type="hidden" name="id"><label>ชื่อสคริปต์<input name="title" required maxlength="80" placeholder="เช่น My Favorite Script"></label><div class="form-row"><label>หมวดหมู่<select name="category" id="form-category"></select></label><label>ชื่อเกม / ใช้กับ<input name="game" maxlength="60" placeholder="เช่น Roblox"></label></div><label>คำอธิบาย<textarea name="description" rows="2" maxlength="300" placeholder="สคริปต์นี้ช่วยทำอะไรบ้าง"></textarea></label><label>โค้ดสคริปต์ <span class="field-hint">Lua หรือ Loader</span><textarea name="code" class="code-input" rows="6" required maxlength="50000" spellcheck="false" placeholder="วางโค้ดที่ต้องการเก็บที่นี่..."></textarea></label><p id="form-error" class="form-error" role="alert"></p><div class="form-actions"><button type="button" class="button outline" data-close>ยกเลิก</button><button type="submit" class="button primary">บันทึกสคริปต์ <span aria-hidden="true">↗</span></button></div></form></dialog>
+  <dialog id="backup-dialog" class="dialog compact-dialog" aria-labelledby="backup-title"><button class="icon-button dialog-close" data-close aria-label="ปิด">×</button><p class="eyebrow">YOUR PERSONAL COLLECTION</p><h2 id="backup-title">เก็บคลังไว้กับคุณ</h2><p class="dialog-subtitle">สำรองสคริปต์ที่คุณเพิ่มและรายการโปรดเป็นไฟล์ JSON แล้วนำเข้าได้ในเครื่องอื่น</p><button class="backup-option" id="export-button"><span aria-hidden="true">↓</span><div><b>ส่งออกไฟล์สำรอง</b><small>ดาวน์โหลดคลังส่วนตัวของคุณ</small></div><span aria-hidden="true">↗</span></button><button class="backup-option" id="import-button"><span aria-hidden="true">↑</span><div><b>นำเข้าจากไฟล์</b><small>รวมกับคลังเดิม โดยไม่ลบรายการที่มีอยู่</small></div><span aria-hidden="true">↗</span></button><input type="file" id="import-file" accept="application/json,.json" hidden><p class="storage-note">ข้อมูลนี้ไม่ได้ซิงก์ข้ามเครื่องโดยอัตโนมัติ หากล้างข้อมูลเบราว์เซอร์ รายการที่เก็บไว้อาจหายไป</p><p id="backup-message" role="status"></p></dialog>
+  <dialog id="guide-dialog" class="dialog compact-dialog" aria-labelledby="guide-title"><button class="icon-button dialog-close" data-close aria-label="ปิด">×</button><p class="eyebrow">QUICK START</p><h2 id="guide-title">เริ่มจากสคริปต์ที่ใช่</h2><ol class="guide-steps"><li><span>01</span><div><h3>ค้นหาหรือเลือกหมวด</h3><p>เลือกชื่อเกม เครื่องมือ หรือค้นหาฟังก์ชันที่ต้องการ</p></div></li><li><span>02</span><div><h3>เปิดรายละเอียด แล้วคัดลอก</h3><p>อ่านขอบเขตของสคริปต์ก่อน กดคัดลอกเพื่อเก็บโค้ดไปใช้ หรือเปิดไฟล์ต้นฉบับบน GitHub</p></div></li><li><span>03</span><div><h3>เก็บไว้ในรายการโปรด</h3><p>กดดาวบนการ์ดเพื่อหาได้ง่ายในครั้งหน้า และเพิ่มสคริปต์ของคุณเองด้วยปุ่ม ＋</p></div></li></ol><p class="storage-note">เว็บนี้ใช้จัดเก็บและคัดลอกโค้ด ไม่ได้รันสคริปต์ Roblox ในหน้าเว็บ การทำงานในเกมขึ้นอยู่กับสคริปต์และสภาพแวดล้อมที่ใช้</p></dialog>
+  <dialog id="delete-dialog" class="dialog compact-dialog" aria-labelledby="delete-title"><p class="eyebrow">REMOVE SCRIPT</p><h2 id="delete-title">ลบสคริปต์นี้?</h2><p class="dialog-subtitle" id="delete-description"></p><div class="form-actions"><button class="button outline" data-close>เก็บไว้</button><button class="button danger" id="confirm-delete">ลบสคริปต์</button></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

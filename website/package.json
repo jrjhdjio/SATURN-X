@@ -1,0 +1,1 @@
+{"name":"saturn-x-vault","version":"1.0.0","private":true,"type":"module","scripts":{"check":"node --check dist/app.js && node --check dist/data.js && node --check dist/art.js","test":"node --test tests/vault.test.mjs"}}
