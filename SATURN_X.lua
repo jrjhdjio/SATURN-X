@@ -1,14 +1,14 @@
--- SATURN X / 100 Days At Sea / v1.0.4-beta / Created by BM
+-- SATURN X / 100 Days At Sea / v1.0.5-beta / Created by BM
 -- Research: https://www.roblox.com/games/70411440483149/100-Days-At-Sea
 -- This build has NOT been tested inside the live experience.
--- Item names/folders are conservative heuristics, NOT verified game internals.
+-- Discovery includes observed DebrisField metadata; the pickup protocol is not verified.
 -- Item pulling is a client physics attempt, not an inventory/harpoon server call.
 -- Assets are embedded below. No external loaders, downloads or telemetry.
 -- A client Lua environment is required. Normal Roblox has no paste-script box.
 -- Standard Studio: use a LocalScript and set your own permitted asset IDs below.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.4-beta",
+    Creator = "BM", Version = "1.0.5-beta",
     PlaceId = 70411440483149, UniverseId = 9167377564,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
@@ -1938,6 +1938,11 @@ local translations = {
     ["กำลังสแกนอยู่ รอสักครู่แล้วกดตรวจอีกครั้ง"]={en="A scan is running; try inspecting again shortly",zh="正在扫描，请稍后再次检查"},
     ["คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย"]={en="Report copied; return to chat and paste it",zh="报告已复制，请返回聊天并粘贴"},
     ["คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก"]={en="Automatic copy unavailable; long-press the report to select all and copy",zh="无法自动复制，请长按报告以全选并复制"},
+    ["บันทึกการยิงฉมวก 15 วินาที"]={en="Record harpoon use for 15 seconds",zh="记录鱼叉操作 15 秒"},
+    ["เริ่มบันทึกไม่ได้ ถือฉมวกแล้วดูสาเหตุในช่องรายงาน"]={en="Cannot start recording. Equip the harpoon and check the report for the reason.",zh="无法开始记录。请装备鱼叉，并查看报告中的原因。"},
+    ["กำลังบันทึก 15 วินาที ยิงฉมวกเก็บไม้ตามปกติ แล้วนำรายงานกลับมาวางในแชต"]={en="Recording for 15 seconds. Use your harpoon to collect wood normally, then paste the report in chat.",zh="正在记录 15 秒。请照常使用鱼叉收集木材，然后将报告粘贴到聊天中。"},
+    ["หยุดบันทึกฉมวก / คัดลอก"]={en="Stop harpoon recording / Copy",zh="停止鱼叉记录 / 复制"},
+    ["บันทึกเฉพาะคำสั่งจากฉมวกที่ถืออยู่ หยุดเองใน 15 วินาที แล้วคัดลอกรายงาน ไม่ยิงฉมวกให้อัตโนมัติ"]={en="Records only calls from the equipped harpoon. Stops after 15 seconds and copies the report. Does not fire automatically.",zh="仅记录所持鱼叉的调用。15 秒后停止并复制报告。不会自动发射鱼叉。"},
 }
 -- END_LOCALES
 
@@ -2761,7 +2766,7 @@ end
 -- BEGIN SEA ITEM LOGIC
 -- Discovery and physics eligibility are separate: anchored loot can still be found.
 local function normalize(text) return string.lower(tostring(text)):gsub("[%s_%-%d]", "") end
-local lootFolders = {items = true, droppeditems = true, drops = true, resources = true, loot = true, pickups = true, debris = true,
+local lootFolders = {items = true, droppeditems = true, drops = true, resources = true, loot = true, pickups = true, debris = true, debrisfield = true,
     floatingitems = true, floatingobjects = true, worlditems = true, collectables = true, collectibles = true}
 local forbidden = {raft = true, rafts = true, boat = true, boats = true, ship = true, ships = true,
     structure = true, structures = true, buildings = true, building = true, base = true, bases = true,
@@ -2809,7 +2814,7 @@ local function candidate(part)
         if forbidden[n] then return nil end
         if lootFolders[n] then
             inFolder = true
-            if not resource then resource = fallback end
+            if not resource or n == "debrisfield" then resource = fallback end
         elseif current:IsA("Model") or current:IsA("BasePart") or current:IsA("Tool") then
             if not nearestObject and (current:IsA("Model") or current:IsA("Tool")) then nearestObject = current end
             if not inFolder then fallback = current end
@@ -2831,8 +2836,13 @@ local function candidate(part)
     local assembly = part.AssemblyRootPart or part
     local internal = assembly == resource or assembly:IsDescendantOf(resource)
     local displayPart = internal and assembly or part
-    local name = prompt and prompt.ObjectText ~= "" and prompt.ObjectText or resource.Name
-    return {part = displayPart, sourcePart = part, object = resource, name = name, path = resource:GetFullName(), prompt = prompt}
+    -- Live DebrisField objects have timestamp names and Item/Resource attributes.
+    local itemName, resourceType = resource:GetAttribute("Item"), resource:GetAttribute("Resource")
+    if type(itemName) ~= "string" or itemName:match("^%s*$") then itemName = nil end
+    if type(resourceType) ~= "string" then resourceType = "" end
+    local name = itemName or (prompt and prompt.ObjectText ~= "" and prompt.ObjectText) or resource.Name
+    return {part = displayPart, sourcePart = part, object = resource, name = name, resourceType = resourceType,
+        path = resource:GetFullName(), prompt = prompt}
 end
 local function pullBlock(item)
     local part = item.part
@@ -2861,14 +2871,14 @@ local function indexItems()
     itemIndexReady = true
 end
 local resultBox, scanInfo, pullInfo, diagnosticBox, quickReportBox
-local buildReport, copyItemReport
+local buildReport, copyItemReport, publishItemReport
 local function filteredItems()
     local _, r = character() if not r then return {} end
     local output = {}
     for _, item in ipairs(S.items) do
         if item.part:IsDescendantOf(Workspace) and item.object:IsDescendantOf(Workspace) then
             item.distance = (item.part.Position - r.Position).Magnitude
-            if item.distance <= S.scanRadius and (S.search == "" or string.find(string.lower(item.name .. " " .. item.object.Name), string.lower(S.search), 1, true)) then table.insert(output, item) end
+            if item.distance <= S.scanRadius and (S.search == "" or string.find(string.lower(item.name .. " " .. item.object.Name .. " " .. (item.resourceType or "")), string.lower(S.search), 1, true)) then table.insert(output, item) end
         end
     end
     table.sort(output, function(a, b) return a.distance < b.distance end)
@@ -3084,6 +3094,158 @@ local function interactionReport()
     return table.concat(lines, "\n")
 end
 -- END SEA ITEM LOGIC
+-- BEGIN SATURN_X_HARPOON_TRACE
+local CreateHarpoonTrace = (function()
+-- Opt-in observation of the equipped HarpoonScript only. Never sends or replays calls.
+return function(options)
+    local env, player = options.Environment, options.Player
+    local clock = options.Clock or os.clock
+    local controller = {Disposed = false}
+    local registry
+    local function short(value) return string.sub(tostring(value), 1, 160) end
+    local function describe(value, depth, seen, budget)
+        budget.n = budget.n + 1
+        if budget.n > 48 then return "<limit>" end
+        local kind = typeof(value)
+        if kind == "Instance" then return value.ClassName .. " " .. short(value.GetFullName(value)) end
+        if kind == "string" then return string.format("%q", short(value)) end
+        if kind == "nil" or kind == "boolean" or kind == "number" then return tostring(value) end
+        if kind == "Vector3" or kind == "Vector2" or kind == "CFrame" or kind == "Ray" or kind == "EnumItem" then
+            return kind .. "(" .. short(value) .. ")"
+        end
+        if kind ~= "table" then return "<" .. kind .. ">" end
+        if seen[value] then return "<cycle>" end
+        if depth >= 3 then return "<table>" end
+        seen[value] = true
+        local rows, count = {}, 0
+        for key, entry in next, value do
+            count = count + 1
+            if count > 12 or budget.n >= 48 then rows[#rows + 1] = "..." break end
+            local sensitive = type(key) == "string" and string.lower(key):match("token")
+            if type(key) == "string" then
+                for _, word in ipairs({"secret", "password", "auth", "session"}) do
+                    sensitive = sensitive or string.find(string.lower(key), word, 1, true)
+                end
+            end
+            rows[#rows + 1] = describe(key, depth + 1, seen, budget) .. "=" ..
+                (sensitive and "<redacted>" or describe(entry, depth + 1, seen, budget))
+        end
+        seen[value] = nil
+        return "{" .. table.concat(rows, ", ") .. "}"
+    end
+    local function observe(record, remote, method, caller, args)
+        if not record.Active or clock() >= record.Deadline or record.Tool.Parent ~= player.Character then return end
+        if caller ~= record.Script then return end
+        if method ~= "FireServer" and method ~= "InvokeServer" then return end
+        if typeof(remote) ~= "Instance" then return end
+        if not (remote.IsA(remote, "RemoteEvent") or remote.IsA(remote, "UnreliableRemoteEvent") or remote.IsA(remote, "RemoteFunction")) then return end
+        if #record.Rows >= 12 then record.Capped = true return end
+        local rows = {string.format("CALL %d | %.2fs | %s:%s | argc=%d", #record.Rows + 1,
+            clock() - record.Started, short(remote.GetFullName(remote)), method, args.n),
+            "  caller=" .. short(caller.GetFullName(caller))}
+        local budget = {n = 0}
+        for i = 1, math.min(args.n, 12) do
+            rows[#rows + 1] = "  arg" .. i .. ": " .. describe(args[i], 0, {}, budget)
+        end
+        if args.n > 12 then rows[#rows + 1] = "  ... argument limit" end
+        record.Rows[#record.Rows + 1] = table.concat(rows, "\n")
+    end
+    local function install()
+        local existing = env.SATURN_X_HARPOON_OBSERVER
+        if type(existing) == "table" and existing.Version == 1 and existing.Installed then registry = existing return true end
+        local api = {}
+        for _, name in ipairs({"hookmetamethod", "getnamecallmethod", "getcallingscript", "checkcaller", "newcclosure"}) do
+            api[name] = env[name] or ({hookmetamethod = hookmetamethod, getnamecallmethod = getnamecallmethod,
+                getcallingscript = getcallingscript, checkcaller = checkcaller, newcclosure = newcclosure})[name]
+            if type(api[name]) ~= "function" then return false, "Unsupported API: " .. name end
+        end
+        local candidate = {Version = 1}
+        local original
+        local ok, err = pcall(function()
+            original = api.hookmetamethod(options.Game, "__namecall", api.newcclosure(function(remote, ...)
+                local record = candidate.Active
+                if record and not record.Busy then
+                    record.Busy = true
+                    local args = table.pack(...)
+                    local captured, captureError = pcall(function()
+                        if not api.checkcaller() then
+                            record.Observe(record, remote, api.getnamecallmethod(), api.getcallingscript(), args)
+                        end
+                    end)
+                    if not captured then record.Errors = record.Errors + 1 record.LastError = short(captureError) end
+                    record.Busy = false
+                end
+                -- Forward exactly once, preserving arguments, results, and original errors.
+                return original(remote, ...)
+            end))
+        end)
+        if not ok then return false, "Observer unavailable: " .. short(err) end
+        candidate.Installed = true
+        registry = candidate
+        env.SATURN_X_HARPOON_OBSERVER = registry
+        return true
+    end
+    function controller:Cancel()
+        local record = self.Record
+        if record then
+            record.Active = false
+            if registry and registry.Active == record then registry.Active = nil end
+        end
+    end
+    function controller:Report()
+        local record = self.Record
+        if not record then return "HARPOON TRACE: no recording started" end
+        local rows = {"SATURN X HARPOON TRACE (passive; no requests sent or replayed)",
+            "place=" .. options.Game.PlaceId .. " universe=" .. options.Game.GameId,
+            "tool=" .. record.ToolPath, "calls=" .. #record.Rows .. " capped=" .. tostring(record.Capped),
+            "captureErrors=" .. record.Errors .. " lastError=" .. record.LastError}
+        for _, row in ipairs(record.Rows) do rows[#rows + 1] = row end
+        if #record.Rows == 0 then rows[#rows + 1] = "No matching HarpoonScript namecalls observed. This does not prove the tool sent no requests." end
+        return table.concat(rows, "\n")
+    end
+    function controller:Finish()
+        self:Cancel()
+        return self:Report()
+    end
+    function controller:Start()
+        if self.Disposed then return false, "Observer closed" end
+        self:Cancel()
+        local tool, script
+        if player.Character then
+            for _, child in ipairs(player.Character:GetChildren()) do
+                if child:IsA("Tool") then
+                    for _, item in ipairs(child:GetDescendants()) do
+                        if item:IsA("LocalScript") and item.Name == "HarpoonScript" then tool, script = child, item break end
+                    end
+                end
+                if tool then break end
+            end
+        end
+        if not tool then return false, "Equip Harpoon (HarpoonScript) first" end
+        local ok, err = install()
+        if not ok then return false, err end
+        if registry.Active then return false, "Another recording is active" end
+        local started = clock()
+        local record = {Active = true, Tool = tool, Script = script, ToolPath = tool:GetFullName(),
+            Started = started, Deadline = started + 15, Rows = {}, Errors = 0, LastError = "none", Capped = false, Observe = observe}
+        self.Record = record
+        registry.Active = record
+        options.Delay(15, function()
+            if not self.Disposed and self.Record == record and record.Active then
+                local report = self:Finish()
+                if options.OnFinished then options.OnFinished(report) end
+            end
+        end)
+        return true
+    end
+    function controller:Dispose() self:Cancel() self.Record = nil self.Disposed = true end
+    return controller
+end
+end)()
+-- END SATURN_X_HARPOON_TRACE
+local harpoonTrace = CreateHarpoonTrace({Environment = environment, Player = player, Game = game, Delay = task.delay,
+    OnFinished = function(report) publishItemReport("SATURN X " .. CONFIG.Version .. "\n" .. report) end})
+
 local function clearMarkers()
     for _, obj in pairs(S.markers) do obj:Destroy() end
     S.markers = {}
@@ -3126,6 +3288,7 @@ local function lightingMode(key, enabled)
     end
 end
 local function resetFeatures()
+    harpoonTrace:Cancel()
     for _, key in ipairs({"pull", "esp", "fly", "speed", "jump", "bright", "noFog", "noShadows"}) do if toggleSetters[key] then toggleSetters[key](false, true) end end
     S.pullUntil = 0 S.pullSelection = nil
     stopFlight() clearMarkers()
@@ -3137,7 +3300,7 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.4 BETA  /  18 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.5 BETA  /  18 OCT 2026")
     info(p, "SILVER ORBIT\nเมนู 8 หมวด • ลากแถบด้านบนเพื่อย้าย\nย่อเป็นปุ่มดาวเสาร์ • รองรับเมาส์และสัมผัส", C.text)
     info(p, "ในเวอร์ชันนี้\n• โลโก้และเสียงที่ BM ส่งมา\n• รูปอวตาร ชื่อ และข้อมูลผู้เล่นจริง\n• ค้นหาทรัพยากร / ป้ายระยะ / เลือกของ\n• ดึงของแบบทดลอง / บิน / จุดบันทึก", C.text)
     info(p, "สถานะ: ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nดึงของใช้ฟิสิกส์ฝั่งเครื่อง ชื่อและโฟลเดอร์ของเป็นเกณฑ์ค้นหาเบื้องต้น จึงอาจตรวจไม่พบหรือขยับไม่ได้", C.orange)
@@ -3188,6 +3351,21 @@ do
     action(p, "ดึงชิ้นที่เลือก 4 วินาที", function() beginPull(true) end, true)
     action(p, "หยุดดึงของ", function() S.pullUntil = 0 S.pullSelection = nil toggleSetters.pull(false, true) end, true)
     pullInfo = info(p, "ยังไม่มีคำสั่งดึงของ")
+    action(p, "บันทึกการยิงฉมวก 15 วินาที", function()
+        if not gameReady() then return end
+        S.pullUntil = 0 S.pullSelection = nil
+        toggleSetters.pull(false, true)
+        local ok, reason = harpoonTrace:Start()
+        if not ok then
+            publishItemReport("SATURN X " .. CONFIG.Version .. "\nHARPOON TRACE unavailable: " .. tostring(reason))
+            notify("เริ่มบันทึกไม่ได้ ถือฉมวกแล้วดูสาเหตุในช่องรายงาน")
+            return
+        end
+        setOpen(false)
+        notify("กำลังบันทึก 15 วินาที ยิงฉมวกเก็บไม้ตามปกติ แล้วนำรายงานกลับมาวางในแชต")
+    end)
+    action(p, "หยุดบันทึกฉมวก / คัดลอก", function() publishItemReport(harpoonTrace:Finish()) end, true)
+    info(p, "บันทึกเฉพาะคำสั่งจากฉมวกที่ถืออยู่ หยุดเองใน 15 วินาที แล้วคัดลอกรายงาน ไม่ยิงฉมวกให้อัตโนมัติ")
     action(p, "ตรวจของใกล้ตัว / คัดลอกรายงาน", function() copyItemReport() end)
     info(p, "ถือฉมวกและยืนใกล้ของ แล้วกดตรวจ จากนั้นวางข้อความในแชต\nปุ่มตรวจอ่านข้อมูลอย่างเดียว ไม่ได้ยิงฉมวกหรือเก็บของ")
     quickReportBox = make("TextBox", {Text = "", Visible = false, TextColor3 = C.text, TextSize = 12, Font = Enum.Font.Code,
@@ -3300,6 +3478,14 @@ buildReport = function()
     table.insert(lines, interactionReport())
     return table.concat(lines, "\n")
 end
+publishItemReport = function(report)
+    if not S.alive then return end
+    if diagnosticBox then diagnosticBox.Text = report end
+    if quickReportBox then quickReportBox.Text = report quickReportBox.Visible = true end
+    local copied = type(setclipboard) == "function" and pcall(setclipboard, report)
+    if copied then notify("คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย")
+    else notify("คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก") end
+end
 copyItemReport = function()
     if not S.alive then return end
     S.pullUntil = 0 S.pullSelection = nil
@@ -3311,12 +3497,7 @@ copyItemReport = function()
     if S.scanBusy then notify("กำลังสแกนอยู่ รอสักครู่แล้วกดตรวจอีกครั้ง") return end
     scan()
     if not S.alive then return end
-    local report = buildReport()
-    if diagnosticBox then diagnosticBox.Text = report end
-    if quickReportBox then quickReportBox.Text = report quickReportBox.Visible = true end
-    local copied = type(setclipboard) == "function" and pcall(setclipboard, report)
-    if copied then notify("คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย")
-    else notify("คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก") end
+    publishItemReport(buildReport())
 end
 do
     local p = pages[8]
@@ -3360,6 +3541,7 @@ stop = function(silent)
     end
     if not silent then playSound("window") end
     resetFeatures()
+    harpoonTrace:Dispose()
     S.alive = false S.scanGeneration = S.scanGeneration + 1
     itemParts = {} S.items = {}
     SXSession:Close()
@@ -3381,6 +3563,7 @@ connect(UIS.InputBegan, function(e, processed)
 end)
 connect(UIS.WindowFocusReleased, function() S.up = false S.down = false end)
 connect(player.CharacterRemoving, function()
+    harpoonTrace:Cancel()
     if toggleSetters.fly then toggleSetters.fly(false, true) end
     if toggleSetters.pull then toggleSetters.pull(false, true) end
     if toggleSetters.speed then toggleSetters.speed(false, true) end

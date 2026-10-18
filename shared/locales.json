@@ -2866,5 +2866,25 @@
   "คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก": {
     "en": "Automatic copy unavailable; long-press the report to select all and copy",
     "zh": "无法自动复制，请长按报告以全选并复制"
+  },
+  "บันทึกการยิงฉมวก 15 วินาที": {
+    "en": "Record harpoon use for 15 seconds",
+    "zh": "记录鱼叉操作 15 秒"
+  },
+  "เริ่มบันทึกไม่ได้ ถือฉมวกแล้วดูสาเหตุในช่องรายงาน": {
+    "en": "Cannot start recording. Equip the harpoon and check the report for the reason.",
+    "zh": "无法开始记录。请装备鱼叉，并查看报告中的原因。"
+  },
+  "กำลังบันทึก 15 วินาที ยิงฉมวกเก็บไม้ตามปกติ แล้วนำรายงานกลับมาวางในแชต": {
+    "en": "Recording for 15 seconds. Use your harpoon to collect wood normally, then paste the report in chat.",
+    "zh": "正在记录 15 秒。请照常使用鱼叉收集木材，然后将报告粘贴到聊天中。"
+  },
+  "หยุดบันทึกฉมวก / คัดลอก": {
+    "en": "Stop harpoon recording / Copy",
+    "zh": "停止鱼叉记录 / 复制"
+  },
+  "บันทึกเฉพาะคำสั่งจากฉมวกที่ถืออยู่ หยุดเองใน 15 วินาที แล้วคัดลอกรายงาน ไม่ยิงฉมวกให้อัตโนมัติ": {
+    "en": "Records only calls from the equipped harpoon. Stops after 15 seconds and copies the report. Does not fire automatically.",
+    "zh": "仅记录所持鱼叉的调用。15 秒后停止并复制报告。不会自动发射鱼叉。"
   }
 }
