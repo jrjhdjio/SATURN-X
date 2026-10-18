@@ -1,4 +1,4 @@
--- SATURN X / 100 Days At Sea / v1.0.1-beta / Created by BM
+-- SATURN X / 100 Days At Sea / v1.0.2-beta / Created by BM
 -- Research: https://www.roblox.com/games/70411440483149/100-Days-At-Sea
 -- This build has NOT been tested inside the live experience.
 -- Item names/folders are conservative heuristics, NOT verified game internals.
@@ -8,11 +8,11 @@
 -- Standard Studio: use a LocalScript and set your own permitted asset IDs below.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.1-beta",
+    Creator = "BM", Version = "1.0.2-beta",
     PlaceId = 70411440483149, UniverseId = 9167377564,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
-    MaxScanParts = 1200, ScanInterval = 3,
+    ScanInterval = 3, PullBurstSeconds = 4,
 }
 
 local EMBED = {
@@ -1921,6 +1921,18 @@ local translations = {
     ["MAKE IT YOUR ORBIT"]={en="MAKE IT YOUR ORBIT",zh="打造你的轨道"},
     ["CONTROLS"]={en="CONTROLS",zh="操作"},
     ["SETTINGS"]={en="SETTINGS",zh="设置"},
+    ["พบ %d ชิ้น • ตรวจใกล้ตัว %d / โหลด %d parts\nแสดงของที่ตรึงอยู่ด้วย • การดึงขึ้นกับสิทธิ์ของเครื่อง"]={en="Found %d items • Nearby %d / Loaded %d parts\nAnchored items included • Pulling depends on client ownership",zh="发现 %d 件 • 附近 %d / 已加载 %d 个部件\n包括固定物品 • 拉取取决于客户端所有权"},
+    ["ลองล้างคำค้น แล้วสแกนใหม่"]={en="Clear the filter and scan again",zh="清空筛选后重新扫描"},
+    ["ลองเข้าใกล้ของแล้วสแกน หรือสร้างรายงานตรวจของ"]={en="Move closer and scan, or create an item report",zh="靠近物品后扫描，或生成诊断报告"},
+    ["สแกนไม่สำเร็จ: "]={en="Scan failed: ",zh="扫描失败："},
+    ["สแกนไม่สำเร็จ ดูรายละเอียดในหน้าค้นหา"]={en="Scan failed; see the search page for details",zh="扫描失败，请在搜索页面查看详情"},
+    ["ส่งแรง %d • ตรึง %d • ไม่มีสิทธิ์ %d • ไกล %d\nติดโครงสร้าง/หนัก %d • ใช้ไม่ได้ %d\nส่งแรงไม่เท่ากับเก็บเข้ากระเป๋าสำเร็จ"]={en="Physics attempts %d • Anchored %d • Not owned %d • Too far %d\nAttached/heavy %d • Invalid %d\nPhysics attempts do not confirm inventory pickup",zh="尝试施力 %d • 固定 %d • 无权限 %d • 过远 %d\n连接结构/过重 %d • 无效 %d\n施力不表示已收入背包"},
+    ["ยังดึงไม่ได้ ดูสาเหตุและจำนวนในหน้าดึงของ"]={en="Cannot pull yet; see reasons and counts on the pull page",zh="暂时无法拉取，请查看拉取页面的原因和数量"},
+    ["กำลังดึงของ 4 วินาที • ตรวจผลในเกม"]={en="Pulling for 4 seconds • Check the result in game",zh="正在拉取 4 秒 • 请在游戏中确认结果"},
+    ["ดึงของใกล้ตัว 4 วินาที"]={en="Pull nearby items for 4 seconds",zh="拉取附近物品 4 秒"},
+    ["ดึงชิ้นที่เลือก 4 วินาที"]={en="Pull selected item for 4 seconds",zh="拉取所选物品 4 秒"},
+    ["หยุดดึงของ"]={en="Stop item pulling",zh="停止拉取物品"},
+    ["ล้างคำค้น / สแกนใหม่"]={en="Clear filter / Scan again",zh="清空筛选 / 重新扫描"},
 }
 -- END_LOCALES
 
@@ -2416,7 +2428,8 @@ local S = {
     speed = false, walkSpeed = 24, jump = false, jumpHeight = 10,
     bright = false, noFog = false, noShadows = false, mute = false, volume = 0.45,
     scanRadius = CONFIG.ScanRadius, pullRadius = CONFIG.PullRadius, pullLimit = CONFIG.PullLimit,
-    search = "", scanCount = 0, lastAttempt = 0, attempts = 0,
+    search = "", scanCount = 0, loadedParts = 0, scanGeneration = 0, lastAttempt = 0, attempts = 0,
+    pullUntil = 0, pullSelection = nil, scanErrors = 0,
     selected = nil, waypoints = {}, selectedWaypoint = nil,
     humSnapshot = nil, lightSnapshot = {}, atmosphereSnapshot = {},
     fov = nil, cameraSnapshot = nil, fps = 0, lastError = "none",
@@ -2740,54 +2753,114 @@ local function startFlight()
     return true
 end
 
--- Candidate detection. Never treats every unanchored part as loot.
+-- BEGIN SEA ITEM LOGIC
+-- Discovery and physics eligibility are separate: anchored loot can still be found.
 local function normalize(text) return string.lower(tostring(text)):gsub("[%s_%-%d]", "") end
-local lootFolders = {items = true, droppeditems = true, drops = true, resources = true, loot = true, pickups = true, debris = true}
+local lootFolders = {items = true, droppeditems = true, drops = true, resources = true, loot = true, pickups = true, debris = true,
+    floatingitems = true, floatingobjects = true, worlditems = true, collectables = true, collectibles = true}
 local forbidden = {raft = true, rafts = true, boat = true, boats = true, ship = true, ships = true,
     structure = true, structures = true, buildings = true, building = true, base = true, bases = true,
     vehicle = true, vehicles = true, placed = true, constructions = true}
 local function namedResource(text)
     local n = normalize(text)
+    local tokens = string.lower(tostring(text):gsub("(%l)(%u)", "%1 %2"))
     for _, word in ipairs(S.resourceWords) do
-        if n == word or n == word .. "s" or n == "small" .. word or n == "large" .. word or n == word .. "item" then return true end
+        if n == word or n == word .. "s" then return true end
+        for token in tokens:gmatch("[^%s_%-%d%p]+") do
+            if token == word or token == word .. "s" then return true end
+        end
+        for _, prefix in ipairs({"small", "large", "dropped", "floating", "pickup"}) do
+            if n == prefix .. word or n == prefix .. word .. "s" then return true end
+        end
+        for _, suffix in ipairs({"item", "drop", "pickup", "resource", "bundle"}) do
+            if n == word .. suffix then return true end
+        end
     end
     return false
 end
+local function pickupPrompt(resource)
+    for _, obj in ipairs(resource:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local action = string.lower(obj.ActionText)
+            for _, word in ipairs({"pick", "grab", "collect", "take", "เก็บ", "หยิบ", "拾取", "收集"}) do
+                if string.find(action, word, 1, true) then return obj end
+            end
+        end
+    end
+end
 local function candidate(part)
-    if not part:IsA("BasePart") or part.Anchored then return nil end
+    if not part:IsA("BasePart") or not part:IsDescendantOf(Workspace) then return nil end
     if part:IsA("Seat") or part:IsA("VehicleSeat") then return nil end
-    local assembly = part.AssemblyRootPart or part
-    if assembly.Anchored or assembly.AssemblyMass > 120 then return nil end
-    local current, resource, inFolder = part, nil, false
-    for _ = 1, 12 do
-        if not current or current == Workspace then break end
-        if current:IsA("Tool") or current:IsA("Accessory") then return nil end
+    local current, resource, fallback, inFolder = part, nil, part, false
+    local nearestObject
+    while current and current ~= Workspace do
+        if current:IsA("Accessory") then return nil end
         if current:IsA("Model") and current:FindFirstChildOfClass("Humanoid") then return nil end
+        local owner = current:GetAttribute("OwnerUserId")
+        if owner and tostring(owner) ~= "" and tonumber(owner) ~= 0 and tonumber(owner) ~= player.UserId then return nil end
         local n = normalize(current.Name)
         if forbidden[n] then return nil end
-        if lootFolders[n] then inFolder = true end
-        if not resource and namedResource(current.Name) and (current:IsA("Model") or current:IsA("BasePart")) then resource = current end
+        if lootFolders[n] then
+            inFolder = true
+            if not resource then resource = fallback end
+        elseif current:IsA("Model") or current:IsA("BasePart") or current:IsA("Tool") then
+            if not nearestObject and (current:IsA("Model") or current:IsA("Tool")) then nearestObject = current end
+            if not inFolder then fallback = current end
+            if not inFolder and namedResource(current.Name) then resource = current end
+        end
         current = current.Parent
     end
-    if not resource then return nil end
-    -- Require a loot-like container OR a pickup-style prompt on the resource.
-    local prompt = resource:FindFirstChildWhichIsA("ProximityPrompt", true)
-    local pickupPrompt = prompt and (string.find(string.lower(prompt.ActionText), "pick", 1, true) or string.find(string.lower(prompt.ActionText), "grab", 1, true) or string.find(prompt.ActionText, "เก็บ", 1, true))
-    if not inFolder and not pickupPrompt then return nil end
-    if not assembly:IsDescendantOf(resource) and assembly ~= resource then return nil end
+    if current ~= Workspace then return nil end
+    if resource and resource:IsA("BasePart") and nearestObject and resource:IsDescendantOf(nearestObject)
+        and (part.AssemblyRootPart or part):IsDescendantOf(nearestObject)
+        and (not nearestObject:IsA("Model") or nearestObject:GetExtentsSize().Magnitude <= 35) then resource = nearestObject end
+    local probe = resource or nearestObject or part
+    if probe:IsA("Model") and probe:GetExtentsSize().Magnitude > 35 then return nil end
+    local prompt = pickupPrompt(probe)
+    if not resource and not prompt then return nil end
+    resource = resource or probe
     if resource:IsA("Model") and resource:GetExtentsSize().Magnitude > 35 then return nil end
-    if resource:GetAttribute("OwnerUserId") and resource:GetAttribute("OwnerUserId") ~= player.UserId then return nil end
     if resource:FindFirstChildWhichIsA("Seat", true) or resource:FindFirstChildWhichIsA("VehicleSeat", true) then return nil end
-    return {part = assembly, object = resource, name = resource.Name, path = resource:GetFullName()}
+    local assembly = part.AssemblyRootPart or part
+    local internal = assembly == resource or assembly:IsDescendantOf(resource)
+    local displayPart = internal and assembly or part
+    local name = prompt and prompt.ObjectText ~= "" and prompt.ObjectText or resource.Name
+    return {part = displayPart, sourcePart = part, object = resource, name = name, path = resource:GetFullName(), prompt = prompt}
+end
+local function pullBlock(item)
+    local part = item.part
+    local assembly = part.AssemblyRootPart or part
+    if part.Anchored or assembly.Anchored then return "anchored" end
+    if assembly ~= item.object and not assembly:IsDescendantOf(item.object) then return "attached" end
+    if assembly.AssemblyMass > 120 then return "heavy" end
+    if type(isnetworkowner) == "function" then
+        local ok, owned = pcall(isnetworkowner, assembly)
+        if not ok or owned ~= true then return "ownership" end
+    end
+    return nil, assembly
+end
+-- Index all loaded BaseParts once, including CanQuery=false loot. Scene geometry cannot
+-- consume a spatial-query cap before items are visited. Streaming is tracked by events.
+local itemParts, itemIndexReady = {}, false
+connect(Workspace.DescendantAdded, function(obj) if obj:IsA("BasePart") then itemParts[obj] = true end end)
+connect(Workspace.DescendantRemoving, function(obj) itemParts[obj] = nil end)
+local function indexItems()
+    if itemIndexReady then return end
+    for i, obj in ipairs(Workspace:GetDescendants()) do
+        if not S.alive then return end
+        if obj:IsA("BasePart") and obj:IsDescendantOf(Workspace) then itemParts[obj] = true end
+        if i % 300 == 0 then task.wait() end
+    end
+    itemIndexReady = true
 end
 local resultBox, scanInfo, pullInfo, diagnosticBox
 local function filteredItems()
     local _, r = character() if not r then return {} end
     local output = {}
     for _, item in ipairs(S.items) do
-        if item.part.Parent and item.object.Parent and not item.part.Anchored then
+        if item.part:IsDescendantOf(Workspace) and item.object:IsDescendantOf(Workspace) then
             item.distance = (item.part.Position - r.Position).Magnitude
-            if item.distance <= S.scanRadius and (S.search == "" or string.find(string.lower(item.name), string.lower(S.search), 1, true)) then table.insert(output, item) end
+            if item.distance <= S.scanRadius and (S.search == "" or string.find(string.lower(item.name .. " " .. item.object.Name), string.lower(S.search), 1, true)) then table.insert(output, item) end
         end
     end
     table.sort(output, function(a, b) return a.distance < b.distance end)
@@ -2799,71 +2872,102 @@ local function renderResults()
     for _, connection in ipairs(resultConnections) do connection:Disconnect() end resultConnections = {}
     for _, child in ipairs(resultBox:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     local items = filteredItems()
-    scanInfo.Text = string.format("พบ %d ชิ้น • ตรวจ %d parts%s\nรายการคือของที่เข้าเกณฑ์ ยังไม่ยืนยันว่าเซิร์ฟเวอร์ให้ดึง", #items, S.scanCount, S.scanCapped and " (ถึงขีดจำกัด)" or "")
-    for i = 1, math.min(#items, 16) do
+    scanInfo.Text = string.format("พบ %d ชิ้น • ตรวจใกล้ตัว %d / โหลด %d parts\nแสดงของที่ตรึงอยู่ด้วย • การดึงขึ้นกับสิทธิ์ของเครื่อง", #items, S.scanCount, S.loadedParts)
+    if #items == 0 then scanInfo.Text = scanInfo.Text .. "\n" .. (S.search ~= "" and "ลองล้างคำค้น แล้วสแกนใหม่" or "ลองเข้าใกล้ของแล้วสแกน หรือสร้างรายงานตรวจของ") end
+    for i = 1, math.min(#items, 32) do
         local item = items[i]
-        local b = make("TextButton", {Text = string.format("%s   ·   %.0f studs%s", item.name, item.distance, S.selected == item.part and "  ✓" or ""),
+        local b = make("TextButton", {Text = string.format("%s   ·   %.0f studs%s", item.name, item.distance, S.selected == item.object and "  ✓" or ""),
             BackgroundColor3 = C.card, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 36), TextColor3 = C.text, TextSize = 12, Font = Enum.Font.Gotham, TextWrapped = true}, resultBox)
         corner(b, 8)
-        table.insert(resultConnections, b.Activated:Connect(function() playSound("click") S.selected = item.part notify("เลือก " .. item.name) renderResults() end))
+        table.insert(resultConnections, b.Activated:Connect(function() playSound("click") S.selected = item.object notify("เลือก " .. item.name) renderResults() end))
     end
 end
 local function scan()
-    if S.scanBusy or not S.alive then return end
-    local _, r = character() if not r then return end
+    if S.scanBusy or not S.alive then return false end
+    local _, r = character() if not r then notify("รอให้ตัวละครเกิดก่อนครับ") return false end
     S.scanBusy = true
+    local generation = S.scanGeneration
     local ok, err = pcall(function()
-        local params = OverlapParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = player.Character and {player.Character} or {}
-        params.MaxParts = CONFIG.MaxScanParts
-        local parts = Workspace:GetPartBoundsInRadius(r.Position, S.scanRadius, params)
-        local items, seen = {}, {}
-        S.scanCount = #parts S.scanCapped = #parts >= CONFIG.MaxScanParts
-        for index, part in ipairs(parts) do
-            if not S.alive then return end
-            local item = candidate(part)
-            if item and not seen[item.part] then seen[item.part] = true table.insert(items, item) end
-            if index % 100 == 0 then task.wait() end
+        indexItems()
+        local items, seen, checked, loaded, errors = {}, {}, 0, 0, 0
+        for part in pairs(itemParts) do
+            if not S.alive or generation ~= S.scanGeneration then return end
+            loaded = loaded + 1
+            if part:IsDescendantOf(Workspace) and (part.Position - r.Position).Magnitude <= S.scanRadius then
+                checked = checked + 1
+                local valid, item = pcall(candidate, part)
+                if not valid then errors = errors + 1 S.lastError = tostring(item)
+                elseif item and not seen[item.object] then seen[item.object] = true table.insert(items, item) end
+            end
+            if loaded % 200 == 0 then task.wait() end
         end
-        if S.alive then S.items = items S.lastScan = os.clock() renderResults() end
+        if S.alive and generation == S.scanGeneration then
+            S.items, S.scanCount, S.loadedParts, S.scanErrors = items, checked, loaded, errors
+            S.scanCapped = false
+            if S.selected and not seen[S.selected] then S.selected = nil end
+            renderResults()
+        end
     end)
     S.scanBusy = false
-    if not ok then S.lastError = tostring(err) end
+    S.lastScan = os.clock()
+    if not ok then
+        S.lastError = tostring(err)
+        if scanInfo then scanInfo.Text = "สแกนไม่สำเร็จ: " .. string.sub(S.lastError, 1, 140) end
+        notify("สแกนไม่สำเร็จ ดูรายละเอียดในหน้าค้นหา")
+    end
+    return ok
 end
-local function pullOnce(selectedOnly, silent)
+local function pullOnce(selectedObject, silent)
     if not S.gameMatch then if not silent then gameReady() end return end
     local h, r = character() if not h or not r or h.Health <= 0 then return end
-    local count, ownershipSkipped = 0, 0
-    for _, item in ipairs(filteredItems()) do
+    local count = 0
+    local skipped = {anchored = 0, ownership = 0, attached = 0, heavy = 0, range = 0, invalid = 0}
+    -- Explicit selection remains valid even after the search filter changes.
+    local list = filteredItems()
+    if selectedObject then list = S.items end
+    for _, item in ipairs(list) do
         if count >= S.pullLimit then break end
-        if item.distance <= S.pullRadius and (not selectedOnly or S.selected == item.part) then
-            local valid = candidate(item.part)
-            if valid then
-                local owned = true
-                if type(isnetworkowner) == "function" then
-                    local ok, result = pcall(isnetworkowner, item.part)
-                    if ok and result == false then owned = false end
-                end
-                if owned then
-                    local target = r.Position + r.CFrame.LookVector * 5 + Vector3.new(((count % 3) - 1) * 1.8, 1.5, math.floor(count / 3) * 1.5)
-                    local ok = pcall(function()
-                        local delta = target - item.part.Position
-                        item.part.AssemblyLinearVelocity = delta.Magnitude > 1 and delta.Unit * math.min(45, delta.Magnitude * 3) or Vector3.zero
-                        item.part.AssemblyAngularVelocity = Vector3.zero
-                    end)
-                    if ok then count = count + 1 end
-                else ownershipSkipped = ownershipSkipped + 1 end
-            end
+        if not selectedObject or selectedObject == item.object then
+            local ok, reason = pcall(function()
+                if not item.part:IsDescendantOf(Workspace) or not item.object:IsDescendantOf(Workspace) then return "invalid" end
+                if (item.part.Position - r.Position).Magnitude > S.pullRadius then return "range" end
+                -- Revalidate the object, not just its assembly root's potentially generic name.
+                local valid = candidate(item.sourcePart or item.part)
+                if not valid or valid.object ~= item.object then return "invalid" end
+                local blocked, assembly = pullBlock(valid)
+                if blocked then return blocked end
+                local target = r.Position + r.CFrame.LookVector * 5 + Vector3.new(((count % 3) - 1) * 1.8, 1.5, math.floor(count / 3) * 1.5)
+                local delta = target - assembly.Position
+                assembly.AssemblyLinearVelocity = delta.Magnitude > 1 and delta.Unit * math.min(45, delta.Magnitude * 3) or Vector3.zero
+                assembly.AssemblyAngularVelocity = Vector3.zero
+                count = count + 1
+            end)
+            if not ok then S.lastError = tostring(reason) skipped.invalid = skipped.invalid + 1
+            elseif reason then skipped[reason] = skipped[reason] + 1 end
         end
     end
-    S.lastAttempt = count S.attempts = S.attempts + count
-    if pullInfo then pullInfo.Text = string.format("ครั้งล่าสุด: ส่งคำสั่งฟิสิกส์ %d ชิ้น • ข้ามสิทธิ์ %d\nตัวเลขนี้ไม่ใช่จำนวนที่เก็บเข้ากระเป๋าสำเร็จ", count, ownershipSkipped) end
+    S.lastAttempt = count S.attempts = S.attempts + count S.pullSkipped = skipped
+    if pullInfo then pullInfo.Text = string.format("ส่งแรง %d • ตรึง %d • ไม่มีสิทธิ์ %d • ไกล %d\nติดโครงสร้าง/หนัก %d • ใช้ไม่ได้ %d\nส่งแรงไม่เท่ากับเก็บเข้ากระเป๋าสำเร็จ", count, skipped.anchored, skipped.ownership, skipped.range, skipped.attached + skipped.heavy, skipped.invalid) end
     if not silent then
-        if count == 0 then notify("ยังดึงไม่ได้: ลองเข้าใกล้ของแล้วสแกน หรือดูรายงานตรวจของ")
-        else notify("ลองดึง " .. count .. " ชิ้นแล้ว — ต้องดูผลในเกม ไม่ยืนยันการเก็บเข้ากระเป๋า") end
+        if count == 0 then notify("ยังดึงไม่ได้ ดูสาเหตุและจำนวนในหน้าดึงของ")
+        else notify("กำลังดึงของ 4 วินาที • ตรวจผลในเกม") end
     end
 end
+local function beginPull(selectedOnly)
+    if not gameReady() then return end
+    if selectedOnly and not S.selected then notify("เลือกของจากหมวดค้นหาไอเท็มก่อน") return end
+    if not selectedOnly then scan() end
+    if not S.alive then return end
+    S.pullSelection = selectedOnly and S.selected or nil
+    S.pullUntil = os.clock() + CONFIG.PullBurstSeconds
+    pullOnce(S.pullSelection, false)
+end
+local function updatePull()
+    if not S.alive then return end
+    if os.clock() < S.pullUntil then pullOnce(S.pullSelection, true)
+    elseif S.pull then pullOnce(nil, true) end
+end
+-- END SEA ITEM LOGIC
 local function clearMarkers()
     for _, obj in pairs(S.markers) do obj:Destroy() end
     S.markers = {}
@@ -2907,6 +3011,7 @@ local function lightingMode(key, enabled)
 end
 local function resetFeatures()
     for _, key in ipairs({"pull", "esp", "fly", "speed", "jump", "bright", "noFog", "noShadows"}) do if toggleSetters[key] then toggleSetters[key](false, true) end end
+    S.pullUntil = 0 S.pullSelection = nil
     stopFlight() clearMarkers()
     if S.cameraSnapshot and S.cameraSnapshot.camera.Parent then pcall(function() S.cameraSnapshot.camera.FieldOfView = S.cameraSnapshot.fov end) end
     S.cameraSnapshot = nil
@@ -2916,7 +3021,7 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.1 BETA  /  17 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.2 BETA  /  18 OCT 2026")
     info(p, "SILVER ORBIT\nเมนู 8 หมวด • ลากแถบด้านบนเพื่อย้าย\nย่อเป็นปุ่มดาวเสาร์ • รองรับเมาส์และสัมผัส", C.text)
     info(p, "ในเวอร์ชันนี้\n• โลโก้และเสียงที่ BM ส่งมา\n• รูปอวตาร ชื่อ และข้อมูลผู้เล่นจริง\n• ค้นหาทรัพยากร / ป้ายระยะ / เลือกของ\n• ดึงของแบบทดลอง / บิน / จุดบันทึก", C.text)
     info(p, "สถานะ: ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nดึงของใช้ฟิสิกส์ฝั่งเครื่อง ชื่อและโฟลเดอร์ของเป็นเกณฑ์ค้นหาเบื้องต้น จึงอาจตรวจไม่พบหรือขยับไม่ได้", C.orange)
@@ -2957,21 +3062,26 @@ do
     info(p, "ดึงเฉพาะทรัพยากรที่ตรวจพบใกล้ตัว ไม่ใช่การเก็บเข้ากระเป๋าอัตโนมัติ ของที่เซิร์ฟเวอร์ควบคุมอาจไม่ขยับ", C.orange)
     toggle(p, "ดึงของใกล้ตัวต่อเนื่อง", "pull", function(value)
         if value and not gameReady() then return false end
+        S.pullUntil = 0 S.pullSelection = nil
         if value then task.spawn(scan) notify("เปิดดึงของทดลอง • ปิดสวิตช์หรือกดหยุดทั้งหมดเพื่อหยุด") end
         return true
     end)
     stepper(p, "ระยะดึง (studs)", "pullRadius", 10, 120, 10)
     stepper(p, "จำนวนสูงสุดต่อรอบ", "pullLimit", 1, 12, 1)
-    action(p, "ลองดึงของใกล้ตัว 1 ครั้ง", function() if gameReady() then scan() pullOnce(false, false) end end)
-    action(p, "ลองดึงเฉพาะชิ้นที่เลือก", function() if not S.selected then notify("เลือกของจากหมวดค้นหาไอเท็มก่อน") else pullOnce(true, false) end end, true)
+    action(p, "ดึงของใกล้ตัว 4 วินาที", function() beginPull(false) end)
+    action(p, "ดึงชิ้นที่เลือก 4 วินาที", function() beginPull(true) end, true)
+    action(p, "หยุดดึงของ", function() S.pullUntil = 0 S.pullSelection = nil toggleSetters.pull(false, true) end, true)
     pullInfo = info(p, "ยังไม่มีคำสั่งดึงของ")
 end
 -- 05 / Resource scanner
 do
     local p = pages[5]
     title(p, "ค้นหาไอเท็ม", "RESOURCE SCANNER  /  NEARBY")
-    input(p, "กรองชื่อที่พบ เช่น wood", "", function(text) S.search = string.sub(text, 1, 60) renderResults() end)
-    stepper(p, "รัศมีค้นหา (studs)", "scanRadius", 40, 400, 20)
+    local function searchChanged(text) S.search = string.sub(text, 1, 60):match("^%s*(.-)%s*$") renderResults() end
+    local searchBox = input(p, "กรองชื่อที่พบ เช่น wood", "", searchChanged)
+    connect(searchBox:GetPropertyChangedSignal("Text"), function() searchChanged(searchBox.Text) end)
+    action(p, "ล้างคำค้น / สแกนใหม่", function() searchBox.Text = "" S.search = "" scan() end, true)
+    stepper(p, "รัศมีค้นหา (studs)", "scanRadius", 40, 400, 20, function() task.spawn(scan) end)
     toggle(p, "แสดงชื่อและระยะของไอเท็ม", "esp", function(value) if not value then clearMarkers() else task.spawn(scan) end return true end)
     action(p, "สแกน / อัปเดตรายการ", scan)
     scanInfo = info(p, "กดสแกนเพื่อค้นหาทรัพยากรที่อยู่ใกล้ตัว")
@@ -3038,17 +3148,29 @@ local function buildReport()
         "candidates=" .. #S.items, "clientPullAttempts=" .. S.attempts, "lastError=" .. S.lastError,
         "logo=" .. S.media.logo .. " window=" .. S.media.window .. " click=" .. S.media.click}
     for i, item in ipairs(filteredItems()) do if i <= 12 then table.insert(lines, item.path .. " | " .. math.floor(item.distance) .. " studs") end end
-    -- Read-only inspection of nearby interaction labels, not RemoteEvent probing.
+    table.insert(lines, "loadedParts=" .. S.loadedParts .. " scanErrors=" .. S.scanErrors)
+    table.insert(lines, "filter=" .. S.search .. " scanRadius=" .. S.scanRadius .. " pullRadius=" .. S.pullRadius)
     local _, r = character()
     if r then
-        local op = OverlapParams.new() op.MaxParts = 150 op.FilterType = Enum.RaycastFilterType.Exclude op.FilterDescendantsInstances = player.Character and {player.Character} or {}
+        indexItems()
+        local nearby = {}
+        for part in pairs(itemParts) do
+            if part:IsDescendantOf(Workspace) and not (player.Character and part:IsDescendantOf(player.Character)) then
+                local distance = (part.Position - r.Position).Magnitude
+                if distance <= 35 then table.insert(nearby, {part = part, distance = distance}) end
+            end
+        end
+        table.sort(nearby, function(a, b) return a.distance < b.distance end)
         local seen, count = {}, 0
-        for _, part in ipairs(Workspace:GetPartBoundsInRadius(r.Position, 35, op)) do
-            local model = part:FindFirstAncestorOfClass("Model") or part
-            if not seen[model] and not model:FindFirstChildOfClass("Humanoid") then
-                seen[model] = true
-                local prompt = model:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if prompt and count < 8 then count = count + 1 table.insert(lines, "nearby: " .. model:GetFullName() .. " | action=" .. prompt.ActionText) end
+        for _, entry in ipairs(nearby) do
+            local part = entry.part
+            local object = part:FindFirstAncestorOfClass("Model") or part
+            if not seen[object] and not object:FindFirstChildOfClass("Humanoid") then
+                seen[object] = true count = count + 1
+                local ok, found = pcall(candidate, part)
+                table.insert(lines, "nearby: " .. object:GetFullName() .. " | part=" .. part.Name .. " | anchored=" .. tostring(part.Anchored)
+                    .. " | query=" .. tostring(part.CanQuery) .. " | match=" .. tostring(ok and found ~= nil))
+                if count >= 12 then break end
             end
         end
     end
@@ -3099,7 +3221,8 @@ stop = function(silent)
     end
     if not silent then playSound("window") end
     resetFeatures()
-    S.alive = false
+    S.alive = false S.scanGeneration = S.scanGeneration + 1
+    itemParts = {} S.items = {}
     SXSession:Close()
     for _, c in ipairs(S.connections) do c:Disconnect() end
     for _, c in ipairs(resultConnections) do c:Disconnect() end
@@ -3123,6 +3246,7 @@ connect(player.CharacterRemoving, function()
     if toggleSetters.pull then toggleSetters.pull(false, true) end
     if toggleSetters.speed then toggleSetters.speed(false, true) end
     if toggleSetters.jump then toggleSetters.jump(false, true) end
+    S.scanGeneration = S.scanGeneration + 1 S.pullUntil = 0 S.pullSelection = nil S.selected = nil
     S.humSnapshot = nil S.items = {} clearMarkers()
 end)
 connect(player.CharacterAdded, function() S.humSnapshot = nil S.lastScan = 0 end)
@@ -3145,7 +3269,7 @@ end)
 task.spawn(function()
     local statsAt = 0
     while S.alive do
-        if S.pull then guarded(function() pullOnce(false, true) end) end
+        if S.pull or os.clock() < S.pullUntil then guarded(updatePull) end
         if S.esp then guarded(updateMarkers) end
         if (S.pull or S.esp or (S.open and S.tab == 5)) and os.clock() - S.lastScan >= CONFIG.ScanInterval and not S.scanBusy then task.spawn(scan) end
         if os.clock() - statsAt > 1 then
@@ -3160,7 +3284,7 @@ task.spawn(function()
                 footer.Text = string.format("%s  •  FPS %.0f  •  %s", CONFIG.Version, S.fps, S.gameMatch and "100 DAYS AT SEA" or "แมพไม่ตรง")
             end)
         end
-        task.wait(0.25)
+        task.wait((S.pull or os.clock() < S.pullUntil) and 0.1 or 0.25)
     end
 end)
 

@@ -2798,5 +2798,53 @@
   "SETTINGS": {
     "en": "SETTINGS",
     "zh": "设置"
+  },
+  "พบ %d ชิ้น • ตรวจใกล้ตัว %d / โหลด %d parts\nแสดงของที่ตรึงอยู่ด้วย • การดึงขึ้นกับสิทธิ์ของเครื่อง": {
+    "en": "Found %d items • Nearby %d / Loaded %d parts\nAnchored items included • Pulling depends on client ownership",
+    "zh": "发现 %d 件 • 附近 %d / 已加载 %d 个部件\n包括固定物品 • 拉取取决于客户端所有权"
+  },
+  "ลองล้างคำค้น แล้วสแกนใหม่": {
+    "en": "Clear the filter and scan again",
+    "zh": "清空筛选后重新扫描"
+  },
+  "ลองเข้าใกล้ของแล้วสแกน หรือสร้างรายงานตรวจของ": {
+    "en": "Move closer and scan, or create an item report",
+    "zh": "靠近物品后扫描，或生成诊断报告"
+  },
+  "สแกนไม่สำเร็จ: ": {
+    "en": "Scan failed: ",
+    "zh": "扫描失败："
+  },
+  "สแกนไม่สำเร็จ ดูรายละเอียดในหน้าค้นหา": {
+    "en": "Scan failed; see the search page for details",
+    "zh": "扫描失败，请在搜索页面查看详情"
+  },
+  "ส่งแรง %d • ตรึง %d • ไม่มีสิทธิ์ %d • ไกล %d\nติดโครงสร้าง/หนัก %d • ใช้ไม่ได้ %d\nส่งแรงไม่เท่ากับเก็บเข้ากระเป๋าสำเร็จ": {
+    "en": "Physics attempts %d • Anchored %d • Not owned %d • Too far %d\nAttached/heavy %d • Invalid %d\nPhysics attempts do not confirm inventory pickup",
+    "zh": "尝试施力 %d • 固定 %d • 无权限 %d • 过远 %d\n连接结构/过重 %d • 无效 %d\n施力不表示已收入背包"
+  },
+  "ยังดึงไม่ได้ ดูสาเหตุและจำนวนในหน้าดึงของ": {
+    "en": "Cannot pull yet; see reasons and counts on the pull page",
+    "zh": "暂时无法拉取，请查看拉取页面的原因和数量"
+  },
+  "กำลังดึงของ 4 วินาที • ตรวจผลในเกม": {
+    "en": "Pulling for 4 seconds • Check the result in game",
+    "zh": "正在拉取 4 秒 • 请在游戏中确认结果"
+  },
+  "ดึงของใกล้ตัว 4 วินาที": {
+    "en": "Pull nearby items for 4 seconds",
+    "zh": "拉取附近物品 4 秒"
+  },
+  "ดึงชิ้นที่เลือก 4 วินาที": {
+    "en": "Pull selected item for 4 seconds",
+    "zh": "拉取所选物品 4 秒"
+  },
+  "หยุดดึงของ": {
+    "en": "Stop item pulling",
+    "zh": "停止拉取物品"
+  },
+  "ล้างคำค้น / สแกนใหม่": {
+    "en": "Clear filter / Scan again",
+    "zh": "清空筛选 / 重新扫描"
   }
 }
