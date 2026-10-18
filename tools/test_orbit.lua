@@ -13,7 +13,12 @@ local vector={};vector.__index=function(v,k)if k=='Magnitude'then return math.sq
 vector.__sub=function(a,b)return setmetatable({X=a.X-b.X,Y=a.Y-b.Y,Z=(a.Z or 0)-(b.Z or 0)},vector)end
 Vector2={new=function(x,y)return setmetatable({X=x,Y=y,Z=0},vector)end};Vector3={new=function(x,y,z)return setmetatable({X=x,Y=y,Z=z or 0},vector)end}
 UDim={new=function(s,o)return {Scale=s or 0,Offset=o or 0}end}
-UDim2={new=function(xs,xo,ys,yo)return {X=UDim.new(xs,xo),Y=UDim.new(ys,yo)}end}
+local udim2Methods={}
+UDim2={new=function(xs,xo,ys,yo)return setmetatable({X=UDim.new(xs,xo),Y=UDim.new(ys,yo)},{__index=udim2Methods})end}
+function udim2Methods:Lerp(b,a)
+    return UDim2.new(self.X.Scale+(b.X.Scale-self.X.Scale)*a,self.X.Offset+(b.X.Offset-self.X.Offset)*a,
+        self.Y.Scale+(b.Y.Scale-self.Y.Scale)*a,self.Y.Offset+(b.Y.Offset-self.Y.Offset)*a)
+end
 UDim2.fromOffset=function(x,y)return UDim2.new(0,x,0,y)end;UDim2.fromScale=function(x,y)return UDim2.new(x,0,y,0)end
 ColorSequence={new=function(a,b)return {a,b}end}
 TweenInfo={new=function(...)return {...}end}
@@ -65,6 +70,8 @@ local HttpService={JSONEncode=function(_,settings)saved={};for k,v in pairs(sett
 writefile=function(p,c)assert(p=='SATURN_X_shared_settings_v1.json'and c=='mock-json')end
 local services={RunService=RunService,UserInputService=UIS,GuiService=GuiService,HttpService=HttpService}
 local TweenService={Create=function(_,o,_,props) local t={};function t:Play()for k,v in pairs(props)do o[k]=v end end;function t:Cancel()self.cancelled=true end;return t end};services.TweenService=TweenService
+-- Linear easing isolates timeline tests from Roblox's native easing/rendering.
+function TweenService:GetValue(alpha)return alpha end
 game={GetService=function(_,name)return assert(services[name],name)end};workspace={CurrentCamera={ViewportSize=Vector2.new(1200,800)}}
 local host=obj('Folder');local sharedGui=obj('ScreenGui',host)
 local M={Alive=true,Version='1.0.0',Settings={language='en'},Gui=sharedGui,WatchRoots={},Bindings={},Renderers={}}
@@ -99,7 +106,7 @@ local install=assert(loadfile(path))();local orbit=install(M)
 local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.3.0-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.4.0-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -138,14 +145,29 @@ for i=1,8 do
 end
 pass('all eight category callbacks remain reachable')
 local pageScale=content:FindFirstChild('OrbitPageScale')
+local frameTrack=c.FrameAnimations[window]
+assert(orbit.AnimationFrames==20 and orbit.AnimationFPS==60 and #frameTrack.Samples==20)
+assert(frameTrack.Frame==1 and window.GroupTransparency==1 and pageScale.Scale<1)
+for frame=2,20 do
+    RunService.Heartbeat:Fire(1/60)
+    assert(frameTrack.Frame==frame)
+    assert(math.abs(window.GroupTransparency-(1-(frame-1)/19))<1e-9)
+end
+RunService.Heartbeat:Fire(1/60)
+assert(c.FrameAnimations[window]==nil and c.FrameAnimations[content]==nil and c.FrameAnimations[pageScale]==nil)
+pass('page reveal advances through exactly 20 sampled poses at 60 Hz and releases finished tracks')
 assert(pageScale and windowScale.Scale==.6 and pageScale.Scale==1 and not sidebar.Visible)
 c:SetOpen(false)
 assert(window.Visible and not descendantsNamed(c.Stage,'OrbitalMenu').Visible)
 c:SetOpen(true);runDelayed();assert(c.State=='orbit' and not window.Visible)
-c:Tap(4);c:Tap(4);runDelayed()
+c:Tap(4);c:Tap(4);runDelayed();tick(11)
 assert(c.State=='category' and window.Visible and window.GroupTransparency==0 and pageScale.Scale==1)
 assert(content.Position.Y.Offset==78 and windowScale.Scale==.6)
 pass('interrupting page collapse with reopen cannot hide the next page or change responsive scaling')
+c:Open(false);runDelayed();c:Tap(4);c:Tap(4)
+RunService.Heartbeat:Fire(.5)
+assert(window.GroupTransparency==0 and pageScale.Scale==1 and c.FrameAnimations[window]==nil)
+pass('a delayed client catches up to the final pose without extending the animation')
 c.ReturnButton.Activated:Fire();runDelayed();assert(c.State=='orbit' and not window.Visible)
 c:Tap(2);descendantsNamed(c.Stage,'CenterLogo').Activated:Fire();assert(c.Selected==nil)
 descendantsNamed(c.Stage,'BlackHoleCollapse').Activated:Fire()
@@ -188,6 +210,7 @@ assert(not c.Alive and orbit.Controllers[root]==nil and c.Stage.Parent==nil)
 assert(minimize.Text=='−' and not c.ReturnButton.Parent and #c.Connections==0)
 assert(content.Position==contentPosition and content.Size==contentSize and sidebar.Visible)
 assert(pageScale.Parent==nil and window.GroupTransparency==0 and windowScale.Scale==.6)
+assert(next(c.FrameAnimations)==nil)
 assert(connectionCount()<connectionsBefore)
 pass('destroy during transition disconnects hooks and removes navigation overlays')
 -- Verify a failed download is never registered, then coalesced valid downloads cache once.

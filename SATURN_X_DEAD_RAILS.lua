@@ -49,7 +49,7 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.3.0-orbit
+-- SATURN X media / BM / 1.4.0-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
@@ -479,10 +479,10 @@ end
 return InstallMotion
 end)()
 local InstallOrbit = (function()
--- SATURN X Orbit 1.1.0 / BM
+-- SATURN X Orbit 1.2.0 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.1.0" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.2.0" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -496,8 +496,10 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.1.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
-    M.Orbit=Orbit;M.Build="1.3.0-orbit"
+    local Orbit={Version="1.2.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},
+        AnimationFrames=20,AnimationFPS=60}
+    local frameDuration=Orbit.AnimationFrames/Orbit.AnimationFPS
+    M.Orbit=Orbit;M.Build="1.4.0-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -598,7 +600,7 @@ local function InstallOrbit(M)
     function Orbit:Create(options)
         assert(self.Alive and #options.Names==8,"Orbit needs eight existing categories")
         if self.Controllers[options.Gui] then return self.Controllers[options.Gui] end
-        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},
+        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},FrameAnimations={},
             Options=options,Planets={},Rings={},Sprites={},Angle=0,Hover={},Pointers={}}
         self.Controllers[options.Gui]=C
         -- The orbit is the category picker. Show only the chosen page inside
@@ -623,6 +625,47 @@ local function InstallOrbit(M)
             local t=TweenService:Create(o,TweenInfo.new(duration or .2,easing or Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props)
             C.Tweens[o]=t;t:Play()
         end
+        -- Twenty sampled poses, advanced by elapsed time on one shared heartbeat.
+        -- A slow client skips overdue poses instead of stretching or queueing them.
+        local function animate20(o,props,easing)
+            if C.Tweens[o] then C.Tweens[o]:Cancel();C.Tweens[o]=nil end
+            if not C.Alive or not o.Parent then return end
+            if not moving() then for k,v in pairs(props) do o[k]=v end;return end
+            local t={Elapsed=0,Frame=1,Samples={},Target=props}
+            for frame=1,Orbit.AnimationFrames do
+                local alpha=TweenService:GetValue((frame-1)/(Orbit.AnimationFrames-1),easing or Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+                local pose={}
+                for key,target in pairs(props) do
+                    local start=o[key]
+                    pose[key]=type(start)=="number" and (start+(target-start)*alpha) or start:Lerp(target,alpha)
+                end
+                t.Samples[frame]=pose
+            end
+            function t:Cancel()
+                if C.FrameAnimations[o]==self then C.FrameAnimations[o]=nil end
+                if C.Tweens[o]==self then C.Tweens[o]=nil end
+            end
+            C.FrameAnimations[o]=t;C.Tweens[o]=t
+            for key,value in pairs(t.Samples[1]) do o[key]=value end
+        end
+        connect(RunService.Heartbeat,function(dt)
+            for o,t in pairs(C.FrameAnimations) do
+                if not o.Parent then t:Cancel()
+                else
+                    t.Elapsed=t.Elapsed+math.max(0,dt)
+                    local frame=not moving() and Orbit.AnimationFrames or
+                        math.min(Orbit.AnimationFrames,math.floor(t.Elapsed*Orbit.AnimationFPS+1e-6)+1)
+                    if frame~=t.Frame then
+                        t.Frame=frame
+                        for key,value in pairs(t.Samples[frame]) do o[key]=value end
+                    end
+                    if not moving() or t.Elapsed+1e-6>=frameDuration then
+                        for key,value in pairs(t.Target) do o[key]=value end
+                        t:Cancel()
+                    end
+                end
+            end
+        end)
         function C:Cancel()
             self.Serial=self.Serial+1
             for o,t in pairs(self.Tweens) do t:Cancel();self.Tweens[o]=nil end
@@ -648,10 +691,10 @@ local function InstallOrbit(M)
             options.Window.GroupTransparency=1
             if content and content.Parent then
                 content.Position=UDim2.new(pagePosition.X.Scale,pagePosition.X.Offset,pagePosition.Y.Scale,pagePosition.Y.Offset+12)
-                animate(content,{Position=pagePosition},.32,Enum.EasingStyle.Quint)
+                animate20(content,{Position=pagePosition},Enum.EasingStyle.Quint)
             end
-            if pageScale then pageScale.Scale=.965;animate(pageScale,{Scale=1},.34,Enum.EasingStyle.Quint) end
-            animate(options.Window,{GroupTransparency=0},.22)
+            if pageScale then pageScale.Scale=.965;animate20(pageScale,{Scale=1},Enum.EasingStyle.Quint) end
+            animate20(options.Window,{GroupTransparency=0})
         end
         local function planetScale(index)
             if not moving() then return 1 end
@@ -791,7 +834,7 @@ local function InstallOrbit(M)
                 p.Button:SetAttribute("CategoryDetail",tr(details[options.Names[i]] or strings.default))
                 p.Outline.Transparency=i==selected and .12 or 1
                 C.Rings[i].Stroke.Transparency=i==selected and .42 or .80
-                animate(p.Scale,{Scale=planetScale(i)},.32,Enum.EasingStyle.Back)
+                if self.State=="orbit" then animate20(p.Scale,{Scale=planetScale(i)},Enum.EasingStyle.Back) end
                 if not moving() then p.Scale.Scale=1;p.RippleLine.Transparency=1 end
             end
             if not moving() and self.State=="category" then
@@ -809,11 +852,11 @@ local function InstallOrbit(M)
             if C.Tweens[p.Ripple] then C.Tweens[p.Ripple]:Cancel() end
             if C.Tweens[p.RippleLine] then C.Tweens[p.RippleLine]:Cancel() end
             p.Ripple.Size=UDim2.fromOffset(45,45);p.RippleLine.Transparency=.12
-            animate(p.Ripple,{Size=UDim2.fromOffset(112,112)},.55)
-            animate(p.RippleLine,{Transparency=1},.55)
+            animate20(p.Ripple,{Size=UDim2.fromOffset(112,112)})
+            animate20(p.RippleLine,{Transparency=1})
             if C.Tweens[p.Scale] then C.Tweens[p.Scale]:Cancel() end
             p.Scale.Scale=.94
-            animate(p.Scale,{Scale=planetScale(index)},.32,Enum.EasingStyle.Back)
+            animate20(p.Scale,{Scale=planetScale(index)},Enum.EasingStyle.Back)
         end
         function C:Tap(index)
             if not self.Alive or self.State~="orbit" or not self.Planets[index] then return end
@@ -837,17 +880,17 @@ local function InstallOrbit(M)
             self:Refresh();layout();self:PositionPlanets()
             for i,r in ipairs(self.Rings) do
                 r.Scale.Scale=moving() and .3 or 1;r.Stroke.Transparency=moving() and 1 or .80
-                later(serial,.12+i*.035,function() animate(r.Scale,{Scale=1},.32);animate(r.Stroke,{Transparency=.80},.32) end)
+                later(serial,.12+i*.035,function() animate20(r.Scale,{Scale=1});animate20(r.Stroke,{Transparency=.80}) end)
             end
             for i,p in ipairs(self.Planets) do
                 p.Scale.Scale=moving() and .55 or 1
-                later(serial,.10+i*.025,function() animate(p.Scale,{Scale=1},.34,Enum.EasingStyle.Back) end)
+                later(serial,.10+i*.025,function() animate20(p.Scale,{Scale=1},Enum.EasingStyle.Back) end)
             end
             if sound then options.PlayWindow() end
-            animate(portalScale,{Scale=1.45},.36)
-            later(serial,.12,function() animate(disk,{GroupTransparency=0},.34);animate(diskScale,{Scale=1},.4,Enum.EasingStyle.Quint) end)
-            later(serial,.24,function() animate(portalArt,{ImageTransparency=1},.28);animate(portalFallback,{BackgroundTransparency=1},.28) end)
-            later(serial,.62,function() portal.Visible=false;self.State="orbit" end)
+            animate20(portalScale,{Scale=1.45})
+            later(serial,.12,function() animate20(disk,{GroupTransparency=0});animate20(diskScale,{Scale=1},Enum.EasingStyle.Quint) end)
+            later(serial,.24,function() animate20(portalArt,{ImageTransparency=1});animate20(portalFallback,{BackgroundTransparency=1}) end)
+            later(serial,.40+frameDuration,function() portal.Visible=false;self.State="orbit" end)
         end
         function C:SetOpen(value)
             if not self.Alive then return end
@@ -857,18 +900,17 @@ local function InstallOrbit(M)
             local serial=self:Cancel();self.State="collapsing";self.Selected=nil
             options.OnVisible(false);options.Floating.Visible=true;options.PlayWindow()
             if fromPage and moving() then
-                animate(options.Window,{GroupTransparency=1},.16)
-                if pageScale then animate(pageScale,{Scale=.965},.18,Enum.EasingStyle.Quint) end
-                later(serial,.18,function() options.Window.Visible=false;resetPage() end)
+                animate20(options.Window,{GroupTransparency=1})
+                if pageScale then animate20(pageScale,{Scale=.965},Enum.EasingStyle.Quint) end
+                later(serial,frameDuration,function() options.Window.Visible=false;resetPage() end)
             else options.Window.Visible=false;resetPage() end
             stage.Visible=true;disk.Visible=not fromPage;portal.Visible=moving()
             portalArt.Position=UDim2.fromScale(0,-2)
-            portalArt.ImageTransparency=0;portalScale.Scale=.6
+            portalArt.ImageTransparency=0;portalScale.Scale=1.1
             portalFallback.BackgroundColor3=Color3.fromRGB(0,0,0);portalFallback.BackgroundTransparency=0
-            animate(diskScale,{Scale=.08},.3);animate(disk,{GroupTransparency=1},.3)
-            animate(portalScale,{Scale=1.1},.22)
-            later(serial,.22,function() animate(portalScale,{Scale=.05},.18);animate(portalArt,{ImageTransparency=1},.18) end)
-            later(serial,.42,function() stage.Visible=false;portal.Visible=false;self.State="closed" end)
+            animate20(diskScale,{Scale=.08});animate20(disk,{GroupTransparency=1})
+            animate20(portalScale,{Scale=.05});animate20(portalArt,{ImageTransparency=1})
+            later(serial,frameDuration,function() stage.Visible=false;portal.Visible=false;self.State="closed" end)
         end
         connect(core.Activated,function()
             if C.State=="orbit" and C.Selected then C.Selected=nil;C:Refresh();M:Click() end
