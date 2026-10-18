@@ -1,4 +1,4 @@
--- SATURN X / 100 Days At Sea / v1.0.3-beta / Created by BM
+-- SATURN X / 100 Days At Sea / v1.0.4-beta / Created by BM
 -- Research: https://www.roblox.com/games/70411440483149/100-Days-At-Sea
 -- This build has NOT been tested inside the live experience.
 -- Item names/folders are conservative heuristics, NOT verified game internals.
@@ -8,7 +8,7 @@
 -- Standard Studio: use a LocalScript and set your own permitted asset IDs below.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.3-beta",
+    Creator = "BM", Version = "1.0.4-beta",
     PlaceId = 70411440483149, UniverseId = 9167377564,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
@@ -2765,7 +2765,9 @@ local lootFolders = {items = true, droppeditems = true, drops = true, resources 
     floatingitems = true, floatingobjects = true, worlditems = true, collectables = true, collectibles = true}
 local forbidden = {raft = true, rafts = true, boat = true, boats = true, ship = true, ships = true,
     structure = true, structures = true, buildings = true, building = true, base = true, bases = true,
-    vehicle = true, vehicles = true, placed = true, constructions = true}
+    vehicle = true, vehicles = true, placed = true, constructions = true,
+    -- Confirmed by the live report: these logs belong to scenery, not drifting loot.
+    bonfire = true, campfire = true, firepit = true, crafted = true}
 local function namedResource(text)
     local n = normalize(text)
     local tokens = string.lower(tostring(text):gsub("(%l)(%u)", "%1 %2"))
@@ -3024,34 +3026,61 @@ local function interactionReport()
         if not ok then lines[#lines + 1] = "  inspectionError=" .. clean(err) end
     end
     local _, rootPart = character()
-    local nearby = {}
+    local nearby, groups = {}, {}
     if rootPart then
-        -- Ignore the text filter: a hidden nearby item still explains a failed pull.
+        -- Group identical paths so repeated scenery/loot names cannot hide other item types.
+        -- Include the scan radius, not just 60 studs: the player may be on the spawn island.
         for _, item in ipairs(S.items) do
             if item.part:IsDescendantOf(Workspace) and item.object:IsDescendantOf(Workspace) then
                 local distance = (item.part.Position - rootPart.Position).Magnitude
-                if distance <= 60 or item.object == S.selected then nearby[#nearby + 1] = {item = item, distance = distance} end
+                if distance <= S.scanRadius or item.object == S.selected then
+                    local path = item.object:GetFullName()
+                    local group = groups[path]
+                    if not group then
+                        group = {item = item, distance = distance, count = 0, selected = false}
+                        groups[path] = group nearby[#nearby + 1] = group
+                    end
+                    group.count = group.count + 1
+                    if item.object == S.selected or (not group.selected and distance < group.distance) then
+                        group.item, group.distance = item, distance
+                    end
+                    if item.object == S.selected then group.selected = true end
+                end
             end
         end
         table.sort(nearby, function(a, b)
-            if (a.item.object == S.selected) ~= (b.item.object == S.selected) then return a.item.object == S.selected end
+            if a.selected ~= b.selected then return a.selected end
             return a.distance < b.distance
         end)
-        for i = 1, math.min(3, #nearby) do
+        lines[#lines + 1] = "CANDIDATE GROUPS=" .. #nearby
+        for i = 1, math.min(24, #nearby) do
+            local group = nearby[i]
+            lines[#lines + 1] = string.format("  %dx %s | nearest=%.1f | anchored=%s", group.count,
+                clean(group.item.object:GetFullName()), group.distance, tostring(group.item.part.Anchored))
+        end
+        for i = 1, math.min(4, #nearby) do
             local entry, item = nearby[i], nearby[i].item
             local assembly = item.part.AssemblyRootPart or item.part
             lines[#lines + 1] = string.format("ITEM %d | distance=%.1f | anchored=%s | rootAnchored=%s", i, entry.distance, tostring(item.part.Anchored), tostring(assembly.Anchored))
             describe(item.object, "  object")
         end
     end
-    if #nearby == 0 then lines[#lines + 1] = "No candidate within 60 studs; stand beside an item and scan again." end
+    if #nearby == 0 then lines[#lines + 1] = "No candidate within scan radius; scan beside floating loot or select an item." end
     local held = 0
     if player.Character then
         for _, child in ipairs(player.Character:GetChildren()) do
             if child:IsA("Tool") then held = held + 1 if held <= 2 then describe(child, "HELD TOOL") end end
         end
     end
-    if held == 0 then lines[#lines + 1] = "No equipped Tool found; equip the harpoon before copying the report." end
+    if held == 0 then lines[#lines + 1] = "No equipped Tool found." end
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    local carried = {}
+    if backpack then
+        for _, child in ipairs(backpack:GetChildren()) do if child:IsA("Tool") then carried[#carried + 1] = child end end
+    end
+    table.sort(carried, function(a, b) return a.Name < b.Name end)
+    for i = 1, math.min(8, #carried) do describe(carried[i], "BACKPACK TOOL") end
+    lines[#lines + 1] = "heldTools=" .. held .. " backpackTools=" .. #carried
     return table.concat(lines, "\n")
 end
 -- END SEA ITEM LOGIC
@@ -3108,7 +3137,7 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.3 BETA  /  18 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.4 BETA  /  18 OCT 2026")
     info(p, "SILVER ORBIT\nเมนู 8 หมวด • ลากแถบด้านบนเพื่อย้าย\nย่อเป็นปุ่มดาวเสาร์ • รองรับเมาส์และสัมผัส", C.text)
     info(p, "ในเวอร์ชันนี้\n• โลโก้และเสียงที่ BM ส่งมา\n• รูปอวตาร ชื่อ และข้อมูลผู้เล่นจริง\n• ค้นหาทรัพยากร / ป้ายระยะ / เลือกของ\n• ดึงของแบบทดลอง / บิน / จุดบันทึก", C.text)
     info(p, "สถานะ: ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nดึงของใช้ฟิสิกส์ฝั่งเครื่อง ชื่อและโฟลเดอร์ของเป็นเกณฑ์ค้นหาเบื้องต้น จึงอาจตรวจไม่พบหรือขยับไม่ได้", C.orange)
@@ -3241,7 +3270,6 @@ buildReport = function()
         "gameMatch=" .. tostring(S.gameMatch), "scanParts=" .. S.scanCount .. " cap=" .. tostring(S.scanCapped),
         "candidates=" .. #S.items, "clientPullAttempts=" .. S.attempts, "lastError=" .. S.lastError,
         "logo=" .. S.media.logo .. " window=" .. S.media.window .. " click=" .. S.media.click}
-    for i, item in ipairs(filteredItems()) do if i <= 12 then table.insert(lines, item.path .. " | " .. math.floor(item.distance) .. " studs") end end
     table.insert(lines, "loadedParts=" .. S.loadedParts .. " scanErrors=" .. S.scanErrors)
     table.insert(lines, "filter=" .. S.search .. " scanRadius=" .. S.scanRadius .. " pullRadius=" .. S.pullRadius)
     local _, r = character()
@@ -3259,8 +3287,9 @@ buildReport = function()
         for _, entry in ipairs(nearby) do
             local part = entry.part
             local object = part:FindFirstAncestorOfClass("Model") or part
-            if not seen[object] and not object:FindFirstChildOfClass("Humanoid") then
-                seen[object] = true count = count + 1
+            local objectPath = object:GetFullName()
+            if not seen[objectPath] and not object:FindFirstChildOfClass("Humanoid") then
+                seen[objectPath] = true count = count + 1
                 local ok, found = pcall(candidate, part)
                 table.insert(lines, "nearby: " .. object:GetFullName() .. " | part=" .. part.Name .. " | anchored=" .. tostring(part.Anchored)
                     .. " | query=" .. tostring(part.CanQuery) .. " | match=" .. tostring(ok and found ~= nil))

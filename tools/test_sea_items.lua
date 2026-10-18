@@ -84,6 +84,8 @@ local char=obj('Model',Workspace,{Name='Player'})
 local hum=obj('Humanoid',char,{Health=100})
 local rootPart=obj('Part',char,{Name='HumanoidRootPart',Position=Vector3.zero,CFrame={LookVector=Vector3.new(0,0,1)}})
 player={Character=char,UserId=123}
+local backpack=obj('Backpack',nil,{Name='Backpack'})
+function player:FindFirstChildOfClass(class) if class=='Backpack' then return backpack end end
 function character() return hum,rootPart end
 function connect(signal,fn) return signal:Connect(fn) end
 local notices={}
@@ -131,6 +133,21 @@ local owned=model('Wood');owned:SetAttribute('OwnerUserId',999);local ownedPart=
 expect(api.candidate(ownedPart)==nil,'foreign owned objects excluded')
 owned:SetAttribute('OwnerUserId',0);expect(api.candidate(ownedPart)~=nil,'unowned ID zero accepted')
 owned:SetAttribute('OwnerUserId',999)
+-- Reproduce the user's exact scenery path: SpawnIsland.Bonfire.Model.log.Cylinder.
+local spawnIsland=model('SpawnIsland')
+local bonfire=model('Bonfire',spawnIsland)
+local fireModel=model('Model',bonfire)
+for i=1,3 do
+ local fireLog=model('log',fireModel)
+ local cylinder=part(fireLog,'Cylinder',true)
+ expect(api.candidate(cylinder)==nil,'bonfire log must not count as loot')
+end
+local crafted=obj('Folder',spawnIsland,{Name='Crafted'})
+local builtWood=part(crafted,'Wood',true)
+expect(api.candidate(builtWood)==nil,'crafted wooden structure excluded')
+local islandDrops=obj('Folder',spawnIsland,{Name='Items'})
+local looseIslandLog=model('log',islandDrops);local looseIslandPart=part(looseIslandLog,'Cylinder',true)
+expect(api.candidate(looseIslandPart)~=nil,'legitimate drops on SpawnIsland remain discoverable')
 local catalog=part(generic,'Catalog');expect(api.candidate(catalog)==nil,'log does not match catalog')
 local sub=model('SalvagePiece');local subRoot=part(sub,'Handle');local namedChild=part(sub,'Wood')
 namedChild.AssemblyRootPart=subRoot
@@ -200,5 +217,18 @@ expect(report:find('ItemType=Wood',1,true) and not report:find('do-not-log',1,tr
 expect(fixedPart.Anchored and not api.candidate(promptedPart).prompt.begins,'report does not change anchoring or activate prompts')
 harpoon.Parent=nil;equipped.Parent=nil;S.items={}
 report=api.report()
-expect(report:find('No candidate within 60',1,true) and report:find('No equipped Tool found',1,true),'empty report explains how to obtain useful evidence')
+expect(report:find('No candidate within scan radius',1,true) and report:find('No equipped Tool found',1,true),'empty report explains how to obtain useful evidence')
+local bagHarpoon=obj('Tool',backpack,{Name='Harpoon',Enabled=true})
+obj('LocalScript',bagHarpoon,{Name='HarpoonController',ClassName='LocalScript'})
+local sack=obj('Tool',char,{Name='Old Sack',Enabled=true})
+local dropA=model('Wood',drops);local partA=part(dropA,'Mesh',true,Vector3.new(70,0,0))
+local dropB=model('Wood',drops);local partB=part(dropB,'Mesh',true,Vector3.new(90,0,0))
+local dropC=model('Wood',drops);local partC=part(dropC,'Mesh',true,Vector3.new(110,0,0))
+S.items={api.candidate(partA),api.candidate(partB),api.candidate(partC),api.candidate(promptedPart)}
+report=api.report()
+expect(report:find('BACKPACK TOOL: Backpack.Harpoon',1,true) and report:find('HarpoonController',1,true),'harpoon inspected in backpack while sack is held')
+expect(report:find('CANDIDATE GROUPS=2',1,true) and report:find('3x Workspace.FloatingItems.Wood',1,true),'duplicate instance paths grouped without hiding another type')
+expect(report:find('distance=70.0',1,true),'item beyond pull range still appears in interaction report')
+S.selected=dropC;report=api.report()
+expect(report:find('ITEM 1 | distance=110.0',1,true),'selected duplicate keeps priority over nearest same-name object')
 print('PASS '..checks..' sea item regressions (mock instances; live game not tested)')
