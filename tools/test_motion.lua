@@ -141,6 +141,21 @@ for _,o in ipairs(original)do assert(o.Parent==page and o.Size==sizes[o]and not 
 local restored={};for _,o in ipairs(page:GetChildren())do if o:IsA('GuiObject')then table.insert(restored,o)end end
 for i,o in ipairs(original)do assert(restored[i]==o)end
 button.Activated:Fire();assert(actions==2);pass('unbind restores original parents, row order, dimensions and action handlers')
+local renderers=#M.Renderers
+motion.Version='1.0.0';local oldMotion=motion;motion=install(M);flush()
+assert(not oldMotion.Alive and motion~=oldMotion and motion.Version=='1.1.0')
+assert(motion.Roots[root] and motion.Roots[M.Gui] and #M.Renderers==renderers)
+local record=motion.Roots[root].Records[button]
+record.slot.AbsolutePosition=Vector2.new(0,130);page.CanvasPosition=Vector2.new(0,0);tick()
+button.MouseEnter:Fire()
+for frame=2,20 do
+    clock=clock+1/60;RunService.Heartbeat:Fire(1/60);flush()
+    assert(record.sequence and record.sequence.Frame==frame)
+end
+RunService.Heartbeat:Fire(1/60);assert(record.sequence==nil and record.stroke.Transparency==.38)
+button.Activated:Fire();RunService.Heartbeat:Fire(.5)
+assert(record.sequence==nil and record.scale.Scale==1)
+pass('live upgrade preserves buttons and shared settings; hover has 20 poses and slow frames catch up')
 M:Destroy();M:Destroy();flush();assert(not motion.Alive and not next(motion.Roots)and not next(motion.Pending))
 for _,c in ipairs(motion.Connections)do assert(not c.Connected)end
 pass('service cleanup is idempotent with no motion connections')

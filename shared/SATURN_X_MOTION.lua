@@ -1,8 +1,9 @@
--- SATURN X Motion 1.0.0 / BM
+-- SATURN X Motion 1.1.0 / BM
 -- Embedded UI-only extension. Fixed scroll slots prevent layout feedback.
 -- No remotes, gameplay changes, executable downloads, or replacement input handlers.
 local function InstallMotion(M)
-    if M.Motion and M.Motion.Alive then return M.Motion end
+    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.0" then return M.Motion end
+    if M.Motion and M.Motion.Alive then M.Motion:Destroy() end
     local RunService=game:GetService("RunService")
     local UIS=game:GetService("UserInputService")
     local HttpService=game:GetService("HttpService")
@@ -10,7 +11,7 @@ local function InstallMotion(M)
     local env=(type(getgenv)=="function" and getgenv()) or _G
     local defaults={motionEnabled=true,scrollMotionEnabled=true,pressMotionEnabled=true}
     for key,value in pairs(defaults) do if type(M.Settings[key])~="boolean" then M.Settings[key]=value end end
-    local Motion={Version="1.0.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false}
+    local Motion={Version="1.1.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
     M.Motion=Motion;M.Build="1.1.0-motion"
     local function connect(signal,fn,list)
         local c=signal:Connect(fn);table.insert(list or Motion.Connections,c);return c
@@ -38,7 +39,7 @@ local function InstallMotion(M)
         if enabled() and visible(r.object) then
             if M.Settings.scrollMotionEnabled then scale=r.scrollScale or 1 end
             if M.Settings.pressMotionEnabled then
-                if r.pressed or r.pulse>0 then scale=scale*0.965
+                if r.pressed then scale=scale*0.965
                 elseif r.hover then scale=math.min(1,scale+0.012) end
             end
         end
@@ -46,7 +47,7 @@ local function InstallMotion(M)
     end
     local function wake(r) if not r.dead then Motion.Pending[r]=true end end
     local function reset(r)
-        r.pressed=nil;r.hover=false;r.pulse=0;r.scrollScale=1;r.current=1
+        r.pressed=nil;r.hover=false;r.pulse=false;r.scrollScale=1;r.current=1;r.glowCurrent=1;r.sequence=nil
         if r.scale and r.scale.Parent then r.scale.Scale=1 end
         if r.stroke and r.stroke.Parent then r.stroke.Transparency=1 end
         Motion.Pending[r]=nil
@@ -79,6 +80,7 @@ local function InstallMotion(M)
         local function disposeRecord(r,restore)
             if r.dead then return end;r.dead=true;Motion.Pending[r]=nil
             disconnect(r.connections);controller.Records[r.object]=nil
+            if r.autoButtonColor~=nil then pcall(function() r.object.AutoButtonColor=r.autoButtonColor end) end
             if r.scale then pcall(function() r.scale:Destroy() end) end
             if r.stroke then pcall(function() r.stroke:Destroy() end) end
             if r.slot then
@@ -95,7 +97,7 @@ local function InstallMotion(M)
         end
         local function record(o)
             if controller.Records[o] then return controller.Records[o] end
-            local r={object=o,connections={},scrollScale=1,current=1,pulse=0,hover=false}
+            local r={object=o,connections={},scrollScale=1,current=1,pulse=false,hover=false,glowCurrent=1}
             controller.Records[o]=r
             connect(o.Destroying,function() disposeRecord(r,false) end,r.connections)
             connect(o.AncestryChanged,function()
@@ -117,6 +119,7 @@ local function InstallMotion(M)
         local function buttonFeedback(o)
             if not o:IsA("GuiButton") or o:GetAttribute("SATURN_X_NoMotion") then return end
             local r=record(o);if r.button then return end;r.button=true
+            r.autoButtonColor=o.AutoButtonColor;o.AutoButtonColor=false
             -- List children retain their original parent for game-owned list rebuilds.
             -- Only an isolated slot or a non-layout button gets a UIScale.
             if r.slot or not hasLayout(o.Parent) then scaleFor(r) end
@@ -131,7 +134,10 @@ local function InstallMotion(M)
                     r.pressed=input;r.start=input.Position;r.pressedAt=os.clock();wake(r)
                 end
             end,r.connections)
-            connect(o.Activated,function() r.pressed=nil;r.pulse=0.075;wake(r) end,r.connections)
+            connect(o.Activated,function()
+                r.pressed=nil
+                if enabled() and M.Settings.pressMotionEnabled then r.pulse=true;r.sequence=nil;wake(r) end
+            end,r.connections)
         end
         local function wrap(o,scroll)
             if o:GetAttribute("SATURN_X_MotionOwned") or o:GetAttribute("SATURN_X_NoMotion") then return end
@@ -272,27 +278,47 @@ local function InstallMotion(M)
     local accumulator=0
     connect(RunService.Heartbeat,function(dt)
         if not Motion.Alive then return end
-        accumulator=accumulator+dt;if accumulator<1/30 then return end
-        local step=math.min(accumulator,0.1);accumulator=0
-        for controller in pairs(Motion.Dirty) do
-            Motion.Dirty[controller]=nil
-            if controller.Alive then updateScroll(controller) end
+        accumulator=accumulator+dt
+        if accumulator>=1/30 then
+            accumulator=0
+            for controller in pairs(Motion.Dirty) do
+                Motion.Dirty[controller]=nil
+                if controller.Alive then updateScroll(controller) end
+            end
         end
-        local alpha=1-math.exp(-24*step)
         for r in pairs(Motion.Pending) do
             if r.dead or not r.object.Parent then Motion.Pending[r]=nil
             elseif not enabled() or not visible(r.object) then reset(r)
             else
                 if r.pressed and os.clock()-(r.pressedAt or 0)>2 then r.pressed=nil end
-                r.pulse=math.max(0,r.pulse-step)
                 local desired=target(r)
-                r.current=r.current+(desired-r.current)*alpha
-                if math.abs(desired-r.current)<0.0005 then r.current=desired end
-                if r.scale then r.scale.Scale=r.current end
-                local activity=M.Settings.pressMotionEnabled and (r.pressed or r.hover or r.pulse>0)
+                local activity=M.Settings.pressMotionEnabled and (r.pressed or r.hover)
                 local glow=activity and 0.38 or ((M.Settings.scrollMotionEnabled and (r.scrollScale or 1)<0.999) and 0.82 or 1)
-                if r.stroke then r.stroke.Transparency=glow end
-                if r.current==desired and r.pulse==0 and not r.pressed then Motion.Pending[r]=nil end
+                local seq=r.sequence
+                if r.pulse or (seq and (seq.TargetScale~=desired or seq.TargetGlow~=glow)) or
+                    (not seq and (r.current~=desired or r.glowCurrent~=glow)) then
+                    seq={Elapsed=0,Frame=1,FromScale=r.current,FromGlow=r.glowCurrent,TargetScale=desired,TargetGlow=glow,Pulse=r.pulse}
+                    r.sequence=seq;r.pulse=false
+                end
+                if seq then
+                    seq.Elapsed=seq.Elapsed+math.max(0,dt)
+                    seq.Frame=math.min(Motion.AnimationFrames,math.floor(seq.Elapsed*Motion.AnimationFPS+1e-6)+1)
+                    local progress=(seq.Frame-1)/(Motion.AnimationFrames-1)
+                    local alpha=1-(1-progress)^2
+                    r.current=seq.FromScale+(desired-seq.FromScale)*alpha
+                    r.glowCurrent=seq.FromGlow+(glow-seq.FromGlow)*alpha
+                    if seq.Pulse then
+                        local pulse=math.sin(math.pi*progress)
+                        r.current=r.current*(1-.035*pulse)
+                        r.glowCurrent=math.min(r.glowCurrent,1-.62*pulse)
+                    end
+                    if seq.Elapsed+1e-6>=Motion.AnimationFrames/Motion.AnimationFPS then
+                        r.current=desired;r.glowCurrent=glow;r.sequence=nil
+                    end
+                end
+                if r.scale then r.scale.Scale=r.current end
+                if r.stroke then r.stroke.Transparency=r.glowCurrent end
+                if not r.sequence and not r.pulse and not r.pressed then Motion.Pending[r]=nil end
             end
         end
     end)
@@ -354,12 +380,24 @@ local function InstallMotion(M)
         if row and row[lang] then return row[lang] end
         return baseT(self,source)
     end
-    local panel=own("Frame",{Name="SATURN_X_MotionSettings",Size=UDim2.fromOffset(400,310),
+    local panel=own("CanvasGroup",{Name="SATURN_X_MotionSettings",Size=UDim2.fromOffset(400,310),GroupTransparency=0,
         Position=UDim2.fromScale(0.5,0.5),AnchorPoint=Vector2.new(0.5,0.5),Visible=false,
         BackgroundColor3=Color3.fromRGB(13,16,24),BorderSizePixel=0,ZIndex=40},M.Gui)
     own("UICorner",{CornerRadius=UDim.new(0,16)},panel)
     own("UIStroke",{Color=Color3.fromRGB(62,76,97),Thickness=1},panel)
     local panelScale=own("UIScale",{Scale=1},panel)
+    local panelSerial=0;local panelWanted=false
+    local function showPanel(show)
+        panelSerial=panelSerial+1;local serial=panelSerial;panelWanted=show
+        if show then panel.Visible=true;panel.GroupTransparency=1 end
+        local function finish() if Motion.Alive and panelSerial==serial and not show then panel.Visible=false end end
+        if M.Animate20 then M:Animate20(panel,{GroupTransparency=show and 0 or 1},nil,finish)
+        else panel.GroupTransparency=show and 0 or 1;finish() end
+    end
+    local function renderer(fn)
+        local guarded=function() if Motion.Alive then fn() end end
+        table.insert(Motion.Renderers,guarded);table.insert(M.Renderers,guarded)
+    end
     local function label(text,x,y,w,h,size)
         local o=own("TextLabel",{Text=text,TextColor3=Color3.fromRGB(226,234,245),TextSize=size or 13,
             Font=Enum.Font.Gotham,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,
@@ -368,34 +406,35 @@ local function InstallMotion(M)
     end
     local function button(parent,text,x,y,w,h,callback)
         local b=own("TextButton",{Text=text,TextColor3=Color3.fromRGB(226,234,245),TextSize=13,Font=Enum.Font.GothamMedium,
-            AutoButtonColor=true,BackgroundColor3=Color3.fromRGB(25,31,43),BorderSizePixel=0,
+            AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(25,31,43),BorderSizePixel=0,
             Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),ZIndex=42},parent)
         own("UICorner",{CornerRadius=UDim.new(0,9)},b);M:BindText(b,"Text")
         connect(b.Activated,function() M:Click();callback() end);return b
     end
     label("เอฟเฟกต์เมนู",22,15,305,28,20)
     label("ขนาดเมนูเดิม • เอฟเฟกต์ใช้ร่วมกันทุกตัว",22,46,356,30,11)
-    button(panel,"×",352,14,30,30,function() panel.Visible=false end)
+    button(panel,"×",352,14,30,30,function() showPanel(false) end)
     for i,spec in ipairs({{"เปิดเอฟเฟกต์เมนู","motionEnabled"},{"ย่อรายการขณะเลื่อน","scrollMotionEnabled"},{"เอฟเฟกต์แตะ / ชี้ปุ่ม","pressMotionEnabled"}}) do
         local key=spec[2];local y=90+(i-1)*46;label(spec[1],22,y,255,34,13)
         local b=button(panel,"",292,y,86,34,function() M:Set(key,not M.Settings[key]) end)
-        table.insert(M.Renderers,function()
+        renderer(function()
             b.Text=M.Settings[key] and "เปิด" or "ปิด"
             b.BackgroundColor3=M.Settings[key] and Color3.fromRGB(49,73,94) or Color3.fromRGB(25,31,43)
         end)
     end
     local state=label("",22,232,356,50,11)
-    table.insert(M.Renderers,function()
+    renderer(function()
         state.Text=Motion.Reduced and "Roblox เปิดลดการเคลื่อนไหวอยู่ • พักเอฟเฟกต์" or "ปรับได้ทันที • รองรับเมาส์และการสัมผัส"
     end)
     local function layoutPanel()
         local camera=workspace.CurrentCamera;local size=camera and camera.ViewportSize or Vector2.new(800,600)
         panelScale.Scale=math.min(1,math.max(0.2,(size.X-22)/400),math.max(0.2,(size.Y-64)/310))
     end
+    local baseOpen=M.OpenSettings
     local launcher=button(M.Gui,"SX • FX",0,0,76,36,function()
         layoutPanel()
-        panel.Visible=not panel.Visible
-        local other=M.Gui:FindFirstChild("Settings");if panel.Visible and other then other.Visible=false end
+        showPanel(not panelWanted)
+        local other=M.Gui:FindFirstChild("Settings");if panelWanted and other and other.Visible then baseOpen(M,false) end
         M:Refresh()
     end)
     launcher.Name="SATURN_X_MotionLauncher";launcher.AnchorPoint=Vector2.new(1,0);launcher.Position=UDim2.new(1,-12,0,96)
@@ -405,17 +444,21 @@ local function InstallMotion(M)
         if not panel.Visible then return end
         layoutPanel()
     end)
-    local baseOpen=M.OpenSettings
-    function M:OpenSettings(show) panel.Visible=false;return baseOpen(self,show) end
+    function M:OpenSettings(show) showPanel(false);return baseOpen(self,show) end
     function Motion:Destroy()
         if not self.Alive then return end;self.Alive=false;disconnect(self.Connections)
         local roots={};for _,c in pairs(self.Roots) do table.insert(roots,c) end
         for _,c in ipairs(roots) do c:Destroy(true) end
-        self.Pending={};self.Dirty={};panel:Destroy();launcher:Destroy()
+        self.Pending={};self.Dirty={}
+        for i=#M.Renderers,1,-1 do
+            for _,fn in ipairs(self.Renderers) do if M.Renderers[i]==fn then table.remove(M.Renderers,i);break end end
+        end
+        panel:Destroy();launcher:Destroy()
     end
     local baseDestroy=M.Destroy
     function M:Destroy() Motion:Destroy();return baseDestroy(self) end
     for root in pairs(M.WatchRoots) do if root:IsA("ScreenGui") and root~=M.Gui then Motion:Bind(root) end end
+    Motion:Bind(M.Gui)
     M:Refresh()
     return Motion
 end

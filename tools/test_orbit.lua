@@ -22,7 +22,9 @@ end
 UDim2.fromOffset=function(x,y)return UDim2.new(0,x,0,y)end;UDim2.fromScale=function(x,y)return UDim2.new(x,0,y,0)end
 ColorSequence={new=function(a,b)return {a,b}end}
 TweenInfo={new=function(...)return {...}end}
-Color3={fromRGB=function(r,g,b)return {R=r,G=g,B=b}end}
+local colorMethods={}
+Color3={fromRGB=function(r,g,b)return setmetatable({R=r,G=g,B=b},{__index=colorMethods})end}
+function colorMethods:Lerp(b,a)return Color3.fromRGB(self.R+(b.R-self.R)*a,self.G+(b.G-self.G)*a,self.B+(b.B-self.B)*a)end
 Enum=setmetatable({},{__index=function(t,k)local v=setmetatable({},{__index=function(a,b)rawset(a,b,k..'.'..b);return rawget(a,b)end});rawset(t,k,v);return v end})
 local methods={};local all={};local creation=0
 local mt={__index=function(o,k)return methods[k] or o.props[k]end}
@@ -106,7 +108,7 @@ local install=assert(loadfile(path))();local orbit=install(M)
 local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.4.0-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.5.0-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -168,7 +170,7 @@ c:Open(false);runDelayed();c:Tap(4);c:Tap(4)
 RunService.Heartbeat:Fire(.5)
 assert(window.GroupTransparency==0 and pageScale.Scale==1 and c.FrameAnimations[window]==nil)
 pass('a delayed client catches up to the final pose without extending the animation')
-c.ReturnButton.Activated:Fire();runDelayed();assert(c.State=='orbit' and not window.Visible)
+c.ReturnButton.Activated:Fire();assert(c.State=='returning');runDelayed();runDelayed();assert(c.State=='orbit' and not window.Visible)
 c:Tap(2);descendantsNamed(c.Stage,'CenterLogo').Activated:Fire();assert(c.Selected==nil)
 descendantsNamed(c.Stage,'BlackHoleCollapse').Activated:Fire()
 assert(c.State=='collapsing' and not shown and floating.Visible)
@@ -261,6 +263,37 @@ old:SetOpen(false);runDelayed();assert(upgraded.State=='closed' and floating.Vis
 old:SetOpen(true);runDelayed();assert(upgraded.State=='orbit' and not floating.Visible)
 assert(orbit.Assets.atlas==a and upgraded.Planets[1].Image.Image==a)
 pass('live service upgrade replaces old visuals and forwards previously captured toggle handles')
+local colorButton=obj('TextButton',surface,{BackgroundColor3=Color3.fromRGB(0,0,0)})
+local completed=0
+local colorTrack=M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(200,100,50)},nil,function()completed=completed+1 end)
+assert(#colorTrack.Samples==20 and completed==0)
+for frame=2,20 do RunService.Heartbeat:Fire(1/60);assert(colorTrack.Frame==frame) end
+RunService.Heartbeat:Fire(1/60)
+assert(completed==1 and colorButton.BackgroundColor3.R==200 and orbit.Tracks[colorButton]==nil)
+M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(0,0,0)},nil,function()completed=completed+1 end)
+M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(30,40,50)},nil,function()completed=completed+10 end)
+RunService.Heartbeat:Fire(.5);assert(completed==11 and colorButton.BackgroundColor3.R==30)
+pass('shared button color transitions use 20 poses and cancel stale completion callbacks')
+upgraded:Open(false);runDelayed();tick(11)
+local planet=upgraded.Planets[1]
+planet.Button.MouseEnter:Fire();assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(11)
+planet.Button.InputBegan:Fire(touch);assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(11)
+assert(planet.Scale.Scale==.96)
+UIS.InputEnded:Fire(touch);tick(11);assert(planet.Scale.Scale==1.05)
+local center=descendantsNamed(upgraded.Stage,'CenterLogo')
+center.Activated:Fire();local centerScale=center:FindFirstChild('OrbitButtonScale')
+assert(#upgraded.FrameAnimations[centerScale].Samples==20);tick(11);assert(centerScale.Scale==1)
+local hole=descendantsNamed(upgraded.Stage,'BlackHoleCollapse')
+hole.MouseEnter:Fire();assert(#upgraded.FrameAnimations[hole:FindFirstChild('OrbitButtonScale')].Samples==20)
+pass('planet hover, press, release, center logo and black-hole buttons all use 20-pose feedback')
+upgraded:Tap(4);upgraded:Tap(4);tick(11)
+local closed=0
+orbit:Close(root,function() closed=closed+1 end)
+orbit:Close(root,function() closed=closed+1 end)
+old:SetOpen(true);assert(upgraded.Closing and closed==0)
+tick(11);runDelayed();assert(closed==1 and upgraded.State=='closed')
+pass('close waits for its animation, ignores duplicate close/open input, and invokes shutdown once')
 orbit:Destroy();assert(not orbit.Alive and not c2.Alive and next(orbit.Controllers)==nil)
+assert(next(orbit.Tracks)==nil and not orbit.FrameConnection.Connected)
 M:Destroy();flush();runDelayed();pass('shared service cleanup is safe after controller cleanup')
 print(string.format('PASS %d orbital UI groups (mock Roblox APIs; no live client/render verification)',passed))
