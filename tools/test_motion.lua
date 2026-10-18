@@ -143,7 +143,7 @@ for i,o in ipairs(original)do assert(restored[i]==o)end
 button.Activated:Fire();assert(actions==2);pass('unbind restores original parents, row order, dimensions and action handlers')
 local renderers=#M.Renderers
 motion.Version='1.0.0';local oldMotion=motion;motion=install(M);flush()
-assert(not oldMotion.Alive and motion~=oldMotion and motion.Version=='1.1.1')
+assert(not oldMotion.Alive and motion~=oldMotion and motion.Version=='1.2.0')
 assert(motion.Roots[root] and motion.Roots[M.Gui] and #M.Renderers==renderers)
 local record=motion.Roots[root].Records[button]
 record.slot.AbsolutePosition=Vector2.new(0,130);page.CanvasPosition=Vector2.new(0,0);tick()

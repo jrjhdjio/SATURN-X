@@ -1,8 +1,8 @@
--- SATURN X Motion 1.1.1 / BM
+-- SATURN X Motion 1.2.0 / BM
 -- Embedded UI-only extension. Fixed scroll slots prevent layout feedback.
 -- No remotes, gameplay changes, executable downloads, or replacement input handlers.
 local function InstallMotion(M)
-    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.1" then return M.Motion end
+    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.2.0" then return M.Motion end
     if M.Motion and M.Motion.Alive then M.Motion:Destroy() end
     local RunService=game:GetService("RunService")
     local UIS=game:GetService("UserInputService")
@@ -11,8 +11,8 @@ local function InstallMotion(M)
     local env=(type(getgenv)=="function" and getgenv()) or _G
     local defaults={motionEnabled=true,scrollMotionEnabled=true,pressMotionEnabled=true}
     for key,value in pairs(defaults) do if type(M.Settings[key])~="boolean" then M.Settings[key]=value end end
-    local Motion={Version="1.1.1",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
-    M.Motion=Motion;M.Build="1.1.1-motion"
+    local Motion={Version="1.2.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
+    M.Motion=Motion;M.Build="1.2.0-motion"
     local function connect(signal,fn,list)
         local c=signal:Connect(fn);table.insert(list or Motion.Connections,c);return c
     end
@@ -444,12 +444,15 @@ local function InstallMotion(M)
         panelScale.Scale=math.min(1,math.max(0.2,(size.X-22)/400),math.max(0.2,(size.Y-64)/310))
     end
     local baseOpen=M.OpenSettings
-    local launcher=button(M.Gui,"SX • FX",0,0,76,36,function()
+    function M:OpenMotionSettings(show)
+        if not Motion.Alive or not self.Alive then return end
         layoutPanel()
-        showPanel(not panelWanted)
+        if show==nil then show=not panelWanted end
+        showPanel(show==true)
         local other=M.Gui:FindFirstChild("Settings");if panelWanted and other and other.Visible then baseOpen(M,false) end
         M:Refresh()
-    end)
+    end
+    local launcher=button(M.Gui,"SX • FX",0,0,76,36,function() M:OpenMotionSettings() end)
     launcher.Name="SATURN_X_MotionLauncher";launcher.AnchorPoint=Vector2.new(1,0);launcher.Position=UDim2.new(1,-12,0,96)
     local panelTimer=0
     connect(RunService.Heartbeat,function(dt)

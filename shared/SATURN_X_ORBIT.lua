@@ -1,7 +1,7 @@
--- SATURN X Orbit 1.3.1 / BM
+-- SATURN X Orbit 1.4.0 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.3.1" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.4.0" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -15,10 +15,10 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.3.1",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
+    local Orbit={Version="1.4.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
         AnimationFrames=20,AnimationFPS=60}
     local frameStep=1/Orbit.AnimationFPS
-    M.Orbit=Orbit;M.Build="1.5.1-orbit"
+    M.Orbit=Orbit;M.Build="1.6.0-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -108,6 +108,7 @@ local function InstallOrbit(M)
         again={th="แตะดาวเดิมอีกครั้งเพื่อเปิด",en="Tap this planet again to open",zh="再次轻点此行星打开"},
         back={th="แตะโลโก้เพื่อล้างการเลือก",en="Tap the logo to clear selection",zh="轻点标志取消选择"},
         collapse={th="ย่อเมนู",en="Collapse",zh="收起"},
+        menuSettings={th="ตั้งค่าเมนู",en="Menu settings",zh="菜单设置"},
         ready={th="8 หมวด • SATURN X",en="8 categories • SATURN X",zh="8 个分类 • SATURN X"},
         fallback={th="ใช้ไอคอนสำรอง • ภาพยังไม่พร้อม",en="Using fallback icons",zh="正在使用备用图标"},
         default={th="ดูตัวเลือกของหมวดนี้",en="Explore this category",zh="查看此分类的选项"},
@@ -372,6 +373,35 @@ local function InstallOrbit(M)
                 end
             end)
         end
+        -- Small artwork, with the same 48px minimum phone target as the planets.
+        local cometButton=own("TextButton",{Name="CometMenuSettings",Text="",AutoButtonColor=false,
+            BackgroundTransparency=1,Position=UDim2.fromOffset(10,10),Size=UDim2.fromOffset(84,84),ZIndex=11},disk)
+        local cometArt=own("Frame",{Name="SmallCometIcon",BackgroundTransparency=1,
+            Position=UDim2.fromOffset(42,36),AnchorPoint=Vector2.new(.5,.5),
+            Size=UDim2.fromOffset(34,12),Rotation=26,Active=false,Selectable=false,ZIndex=12},cometButton)
+        for i=1,6 do
+            local tail=own("Frame",{Name="CometTail"..i,BackgroundColor3=Color3.fromRGB(170,211,246),
+                BackgroundTransparency=.20+(6-i)*.11,BorderSizePixel=0,Active=false,Selectable=false,
+                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(3+i*4,6),
+                Size=UDim2.fromOffset(6,1+i*.25),ZIndex=12},cometArt)
+            round(tail)
+        end
+        local glow=own("Frame",{Name="CometGlow",BackgroundColor3=Color3.fromRGB(168,212,255),
+            BackgroundTransparency=.72,BorderSizePixel=0,Active=false,Selectable=false,
+            AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(8,8),ZIndex=12},cometArt)
+        round(glow)
+        local cometHead=own("Frame",{Name="CometHead",BackgroundColor3=silver,BackgroundTransparency=.05,
+            BorderSizePixel=0,Active=false,Selectable=false,AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(4,4),ZIndex=12},cometArt)
+        round(cometHead)
+        local cometLabel=text(cometButton,"MenuSettingsLabel",-10,66,104,22,14)
+        cometLabel.ZIndex=12
+        C.CometButton=cometButton;C.CometIcon=cometArt
+        connect(cometButton.Activated,function()
+            if C.Alive and C.State=="orbit" and M.OpenMotionSettings then
+                M:Click();M:OpenMotionSettings(true)
+            end
+        end)
         local black=own("TextButton",{Name="BlackHoleCollapse",Text="",AutoButtonColor=false,BackgroundTransparency=1,
             Position=UDim2.fromOffset(506,10),Size=UDim2.fromOffset(84,84),ZIndex=11},disk)
         local blackFallback=text(black,"Fallback",12,5,60,60,38);blackFallback.Text="◉"
@@ -414,6 +444,8 @@ local function InstallOrbit(M)
             core:SetAttribute("ActionHint",tr(strings.back))
             status.Text=self.AtlasFailed and tr(strings.fallback) or ""
             collapseLabel.Text=tr(strings.collapse)
+            cometLabel.Text=tr(strings.menuSettings)
+            cometButton:SetAttribute("ActionHint",tr(strings.menuSettings))
             for i,p in ipairs(self.Planets) do
                 p.Button:SetAttribute("CategoryTitle",M:T(options.Names[i]))
                 p.Button:SetAttribute("CategoryDetail",tr(details[options.Names[i]] or strings.default))
@@ -514,7 +546,7 @@ local function InstallOrbit(M)
         connect(core.Activated,function()
             if C.State=="orbit" and C.Selected then C.Selected=nil;C:Refresh();M:Click() end
         end)
-        feedback(core,core);feedback(black,black);feedback(returnButton,options.Logo)
+        feedback(core,core);feedback(black,black);feedback(returnButton,options.Logo);feedback(cometButton,cometArt)
         connect(UIS.InputEnded,function(input)
             if C.Pointers[input] then
                 C.Pointers[input]=nil

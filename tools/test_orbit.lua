@@ -110,7 +110,7 @@ local flushTimers=runDelayed
 runDelayed=function() flushTimers();tick(100) end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.5.1-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.6.0-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -321,6 +321,29 @@ assert(#upgraded.FrameAnimations[centerScale].Samples==20);tick(25);assert(cente
 local hole=descendantsNamed(upgraded.Stage,'BlackHoleCollapse')
 hole.MouseEnter:Fire();assert(#upgraded.FrameAnimations[hole:FindFirstChild('OrbitButtonScale')].Samples==20)
 pass('planet hover, press, release, center logo and black-hole buttons all use 20-pose feedback')
+local comet=upgraded.CometButton
+assert(comet and upgraded.CometIcon.Size.X.Offset==34 and #upgraded.Planets==8)
+surface.AbsoluteSize=Vector2.new(360,740)
+assert(comet.Size.X.Offset*upgraded.Fit.Scale>=48)
+local clicks=M.clicks or 0
+comet.Activated:Fire()
+local fx=M.Gui:FindFirstChild('SATURN_X_MotionSettings')
+assert(fx and fx.Visible and M.clicks==clicks+1 and upgraded.State=='orbit')
+local cometScale=upgraded.CometIcon:FindFirstChild('OrbitButtonScale')
+local cometTrack=upgraded.FrameAnimations[cometScale]
+assert(cometTrack and #cometTrack.Samples==20)
+for frame=1,20 do RunService.PreRender:Fire(.5);assert(cometTrack.Frame==frame) end
+RunService.PreRender:Fire(.5);assert(not upgraded.FrameAnimations[cometScale])
+M:OpenMotionSettings(false);tick(25);assert(not fx.Visible)
+M.Settings.motionEnabled=false;comet.Activated:Fire();assert(fx.Visible)
+M:OpenMotionSettings(false);M.Settings.motionEnabled=true
+for _,row in ipairs({{'th','ตั้งค่าเมนู'},{'en','Menu settings'},{'zh','菜单设置'}}) do
+    M.Settings.language=row[1];M:Refresh()
+    assert(comet:GetAttribute('ActionHint')==row[2])
+end
+M.Settings.language='en';M:Refresh();surface.AbsoluteSize=Vector2.new(1200,800)
+pass('small comet opens main-menu settings once, preserves eight categories, supports mobile taps and 20-pose feedback')
+
 upgraded:Tap(4);upgraded:Tap(4);tick(25)
 local closed=0
 orbit:Close(root,function() closed=closed+1 end)
