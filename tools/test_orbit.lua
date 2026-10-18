@@ -66,7 +66,7 @@ task={spawn=function(f)table.insert(deferred,f)end,defer=function(f)table.insert
 local function flush()local guard=0;while #deferred>0 do guard=guard+1;assert(guard<100,'recursive rescan');local q=deferred;deferred={};for _,f in ipairs(q)do f()end end end
 local function runDelayed()local q=delayed;delayed={};for _,f in ipairs(q)do f()end end
 local clock=0;os.clock=function()return clock end
-local RunService={Heartbeat=signal()};local UIS={InputEnded=signal(),InputChanged=signal(),WindowFocusReleased=signal(),WindowFocused=signal()}
+local RunService={Heartbeat=signal(),PreRender=signal()};local UIS={InputEnded=signal(),InputChanged=signal(),WindowFocusReleased=signal(),WindowFocused=signal()}
 local GuiService=obj('GuiService',nil,{ReducedMotionEnabled=false});local saved
 local HttpService={JSONEncode=function(_,settings)saved={};for k,v in pairs(settings)do saved[k]=v end;return 'mock-json'end}
 writefile=function(p,c)assert(p=='SATURN_X_shared_settings_v1.json'and c=='mock-json')end
@@ -105,10 +105,12 @@ if arg[2] then
 end
 writefile=nil
 local install=assert(loadfile(path))();local orbit=install(M)
-local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
+local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.PreRender:Fire(1/30);RunService.Heartbeat:Fire(1/30);flush()end end
+local flushTimers=runDelayed
+runDelayed=function() flushTimers();tick(100) end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.5.0-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.5.1-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -150,26 +152,32 @@ local pageScale=content:FindFirstChild('OrbitPageScale')
 local frameTrack=c.FrameAnimations[window]
 assert(orbit.AnimationFrames==20 and orbit.AnimationFPS==60 and #frameTrack.Samples==20)
 assert(frameTrack.Frame==1 and window.GroupTransparency==1 and pageScale.Scale<1)
-for frame=2,20 do
-    RunService.Heartbeat:Fire(1/60)
+for frame=1,20 do
+    RunService.PreRender:Fire(1/60)
     assert(frameTrack.Frame==frame)
     assert(math.abs(window.GroupTransparency-(1-(frame-1)/19))<1e-9)
 end
-RunService.Heartbeat:Fire(1/60)
+RunService.PreRender:Fire(1/60)
 assert(c.FrameAnimations[window]==nil and c.FrameAnimations[content]==nil and c.FrameAnimations[pageScale]==nil)
 pass('page reveal advances through exactly 20 sampled poses at 60 Hz and releases finished tracks')
 assert(pageScale and windowScale.Scale==.6 and pageScale.Scale==1 and not sidebar.Visible)
 c:SetOpen(false)
 assert(window.Visible and not descendantsNamed(c.Stage,'OrbitalMenu').Visible)
 c:SetOpen(true);runDelayed();assert(c.State=='orbit' and not window.Visible)
-c:Tap(4);c:Tap(4);runDelayed();tick(11)
+c:Tap(4);c:Tap(4);runDelayed();tick(25)
 assert(c.State=='category' and window.Visible and window.GroupTransparency==0 and pageScale.Scale==1)
 assert(content.Position.Y.Offset==78 and windowScale.Scale==.6)
 pass('interrupting page collapse with reopen cannot hide the next page or change responsive scaling')
 c:Open(false);runDelayed();c:Tap(4);c:Tap(4)
 RunService.Heartbeat:Fire(.5)
+assert(window.GroupTransparency==1 and c.FrameAnimations[window].Frame==1)
+RunService.PreRender:Fire(.5)
+assert(window.GroupTransparency==1 and c.FrameAnimations[window].Frame==1)
+RunService.PreRender:Fire(.5)
+assert(window.GroupTransparency>0 and window.GroupTransparency<1 and c.FrameAnimations[window].Frame==2)
+tick(20)
 assert(window.GroupTransparency==0 and pageScale.Scale==1 and c.FrameAnimations[window]==nil)
-pass('a delayed client catches up to the final pose without extending the animation')
+pass('a half-second stall preserves the first poses and Heartbeat cannot skip render frames')
 c.ReturnButton.Activated:Fire();assert(c.State=='returning');runDelayed();runDelayed();assert(c.State=='orbit' and not window.Visible)
 c:Tap(2);descendantsNamed(c.Stage,'CenterLogo').Activated:Fire();assert(c.Selected==nil)
 descendantsNamed(c.Stage,'BlackHoleCollapse').Activated:Fire()
@@ -267,31 +275,58 @@ local colorButton=obj('TextButton',surface,{BackgroundColor3=Color3.fromRGB(0,0,
 local completed=0
 local colorTrack=M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(200,100,50)},nil,function()completed=completed+1 end)
 assert(#colorTrack.Samples==20 and completed==0)
-for frame=2,20 do RunService.Heartbeat:Fire(1/60);assert(colorTrack.Frame==frame) end
-RunService.Heartbeat:Fire(1/60)
+for frame=1,20 do RunService.PreRender:Fire(1/60);assert(colorTrack.Frame==frame) end
+RunService.PreRender:Fire(1/60)
 assert(completed==1 and colorButton.BackgroundColor3.R==200 and orbit.Tracks[colorButton]==nil)
 M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(0,0,0)},nil,function()completed=completed+1 end)
 M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(30,40,50)},nil,function()completed=completed+10 end)
-RunService.Heartbeat:Fire(.5);assert(completed==11 and colorButton.BackgroundColor3.R==30)
+RunService.PreRender:Fire(.5);assert(completed==1);tick(21);assert(completed==11 and colorButton.BackgroundColor3.R==30)
 pass('shared button color transitions use 20 poses and cancel stale completion callbacks')
-upgraded:Open(false);runDelayed();tick(11)
+for _,fps in ipairs({10,30,60,144}) do
+    colorButton.BackgroundColor3=Color3.fromRGB(0,0,0)
+    local done=0
+    local track=M:Animate20(colorButton,{BackgroundColor3=Color3.fromRGB(190,0,0)},nil,function() done=done+1 end)
+    local seen,last=0,0
+    for render=1,400 do
+        RunService.PreRender:Fire(render==5 and .8 or 1/fps)
+        if done>0 then assert(seen==20 and done==1);break end
+        local pose=math.floor(colorButton.BackgroundColor3.R/10+.5)+1
+        assert(pose==last or pose==last+1, 'skipped pose at '..fps..' FPS')
+        if pose~=last then seen=seen+1;last=pose end
+    end
+    assert(done==1 and seen==20)
+end
+pass('all 20 output poses survive 10/30/60/144 FPS and an 800ms stall before completion')
+upgraded:Open(false);runDelayed();upgraded:Tap(4);upgraded:Tap(4);tick(25)
+upgraded:SetOpen(false)
+RunService.Heartbeat:Fire(2);flushTimers()
+assert(window.Visible and upgraded.Stage.Visible and upgraded.State=='collapsing')
+for render=1,20 do
+    RunService.PreRender:Fire(.5);RunService.Heartbeat:Fire(.5)
+    assert(window.Visible and upgraded.Stage.Visible and upgraded.State=='collapsing')
+end
+RunService.PreRender:Fire(.5)
+assert(not window.Visible and not upgraded.Stage.Visible and upgraded.State=='closed')
+pass('slow close retains the page and portal through every render; wall timers cannot hide them early')
+
+upgraded:Open(false);runDelayed();tick(25)
 local planet=upgraded.Planets[1]
-planet.Button.MouseEnter:Fire();assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(11)
-planet.Button.InputBegan:Fire(touch);assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(11)
+planet.Button.MouseEnter:Fire();assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(25)
+planet.Button.InputBegan:Fire(touch);assert(#upgraded.FrameAnimations[planet.Scale].Samples==20);tick(25)
 assert(planet.Scale.Scale==.96)
-UIS.InputEnded:Fire(touch);tick(11);assert(planet.Scale.Scale==1.05)
+UIS.InputEnded:Fire(touch);tick(25);assert(planet.Scale.Scale==1.05)
 local center=descendantsNamed(upgraded.Stage,'CenterLogo')
 center.Activated:Fire();local centerScale=center:FindFirstChild('OrbitButtonScale')
-assert(#upgraded.FrameAnimations[centerScale].Samples==20);tick(11);assert(centerScale.Scale==1)
+assert(#upgraded.FrameAnimations[centerScale].Samples==20);tick(25);assert(centerScale.Scale==1)
 local hole=descendantsNamed(upgraded.Stage,'BlackHoleCollapse')
 hole.MouseEnter:Fire();assert(#upgraded.FrameAnimations[hole:FindFirstChild('OrbitButtonScale')].Samples==20)
 pass('planet hover, press, release, center logo and black-hole buttons all use 20-pose feedback')
-upgraded:Tap(4);upgraded:Tap(4);tick(11)
+upgraded:Tap(4);upgraded:Tap(4);tick(25)
 local closed=0
 orbit:Close(root,function() closed=closed+1 end)
 orbit:Close(root,function() closed=closed+1 end)
 old:SetOpen(true);assert(upgraded.Closing and closed==0)
-tick(11);runDelayed();assert(closed==1 and upgraded.State=='closed')
+tick(25);runDelayed();assert(closed==1 and upgraded.State=='closed')
 pass('close waits for its animation, ignores duplicate close/open input, and invokes shutdown once')
 orbit:Destroy();assert(not orbit.Alive and not c2.Alive and next(orbit.Controllers)==nil)
 assert(next(orbit.Tracks)==nil and not orbit.FrameConnection.Connected)

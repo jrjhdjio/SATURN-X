@@ -1,8 +1,8 @@
--- SATURN X Motion 1.1.0 / BM
+-- SATURN X Motion 1.1.1 / BM
 -- Embedded UI-only extension. Fixed scroll slots prevent layout feedback.
 -- No remotes, gameplay changes, executable downloads, or replacement input handlers.
 local function InstallMotion(M)
-    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.0" then return M.Motion end
+    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.1" then return M.Motion end
     if M.Motion and M.Motion.Alive then M.Motion:Destroy() end
     local RunService=game:GetService("RunService")
     local UIS=game:GetService("UserInputService")
@@ -11,8 +11,8 @@ local function InstallMotion(M)
     local env=(type(getgenv)=="function" and getgenv()) or _G
     local defaults={motionEnabled=true,scrollMotionEnabled=true,pressMotionEnabled=true}
     for key,value in pairs(defaults) do if type(M.Settings[key])~="boolean" then M.Settings[key]=value end end
-    local Motion={Version="1.1.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
-    M.Motion=Motion;M.Build="1.1.0-motion"
+    local Motion={Version="1.1.1",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
+    M.Motion=Motion;M.Build="1.1.1-motion"
     local function connect(signal,fn,list)
         local c=signal:Connect(fn);table.insert(list or Motion.Connections,c);return c
     end
@@ -286,6 +286,11 @@ local function InstallMotion(M)
                 if controller.Alive then updateScroll(controller) end
             end
         end
+    end)
+    connect(RunService.PreRender,function(dt)
+        if not Motion.Alive then return end
+        local frameStep=1/Motion.AnimationFPS
+        local step=math.min(math.max(0,dt),frameStep)
         for r in pairs(Motion.Pending) do
             if r.dead or not r.object.Parent then Motion.Pending[r]=nil
             elseif not enabled() or not visible(r.object) then reset(r)
@@ -301,8 +306,16 @@ local function InstallMotion(M)
                     r.sequence=seq;r.pulse=false
                 end
                 if seq then
-                    seq.Elapsed=seq.Elapsed+math.max(0,dt)
-                    seq.Frame=math.min(Motion.AnimationFrames,math.floor(seq.Elapsed*Motion.AnimationFPS+1e-6)+1)
+                    local finished=false
+                    if not seq.Presented then seq.Presented=true
+                    else
+                        seq.Elapsed=seq.Elapsed+step
+                        if seq.Elapsed+1e-6>=frameStep then
+                            seq.Elapsed=math.max(0,seq.Elapsed-frameStep)
+                            if seq.Frame<Motion.AnimationFrames then seq.Frame=seq.Frame+1
+                            else finished=true end
+                        end
+                    end
                     local progress=(seq.Frame-1)/(Motion.AnimationFrames-1)
                     local alpha=1-(1-progress)^2
                     r.current=seq.FromScale+(desired-seq.FromScale)*alpha
@@ -312,7 +325,7 @@ local function InstallMotion(M)
                         r.current=r.current*(1-.035*pulse)
                         r.glowCurrent=math.min(r.glowCurrent,1-.62*pulse)
                     end
-                    if seq.Elapsed+1e-6>=Motion.AnimationFrames/Motion.AnimationFPS then
+                    if finished then
                         r.current=desired;r.glowCurrent=glow;r.sequence=nil
                     end
                 end

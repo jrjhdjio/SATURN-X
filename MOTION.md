@@ -1,5 +1,9 @@
 # SATURN X — Scale-down & Scroll Micro-interactions
 
+แพตช์ 1.1.1: แสดงครบ 20 ท่าผ่าน PreRender โดยไม่ข้ามท่าเมื่อเฟรมตก
+แยกการวัดรายการเลื่อนออกไปบน Heartbeat; ที่ FPS ต่ำแอนิเมชันใช้เวลานานขึ้น
+ตรวจแบบจำลองที่ 10/30/60/144 FPS และจังหวะค้าง 0.8 วินาทีแล้ว ยังไม่ได้ลองใน Delta จริง
+
 อัปเดตระบบ UI ร่วมให้ SATURN X ทั้ง 10 ตัว: รุ่นหลัก 100 Days At Sea, MINI, AVATAR, CAT SITTING, MM2, DEAD RAILS, DOORS, FISCH, HYPERSHOT และ DANCE ใช้ Loader เดิมได้ โดยปิดแล้วเปิดสคริปต์ใหม่เพื่อโหลดรุ่นอัปเดต
 
 ## เอฟเฟกต์

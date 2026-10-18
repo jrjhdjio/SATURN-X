@@ -50,17 +50,17 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.5.0-orbit
+-- SATURN X media / BM / 1.5.1-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
 local existing = env.SATURN_X_MEDIA_SERVICE
 local InstallMotion = (function()
--- SATURN X Motion 1.1.0 / BM
+-- SATURN X Motion 1.1.1 / BM
 -- Embedded UI-only extension. Fixed scroll slots prevent layout feedback.
 -- No remotes, gameplay changes, executable downloads, or replacement input handlers.
 local function InstallMotion(M)
-    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.0" then return M.Motion end
+    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.1.1" then return M.Motion end
     if M.Motion and M.Motion.Alive then M.Motion:Destroy() end
     local RunService=game:GetService("RunService")
     local UIS=game:GetService("UserInputService")
@@ -69,8 +69,8 @@ local function InstallMotion(M)
     local env=(type(getgenv)=="function" and getgenv()) or _G
     local defaults={motionEnabled=true,scrollMotionEnabled=true,pressMotionEnabled=true}
     for key,value in pairs(defaults) do if type(M.Settings[key])~="boolean" then M.Settings[key]=value end end
-    local Motion={Version="1.1.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
-    M.Motion=Motion;M.Build="1.1.0-motion"
+    local Motion={Version="1.1.1",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
+    M.Motion=Motion;M.Build="1.1.1-motion"
     local function connect(signal,fn,list)
         local c=signal:Connect(fn);table.insert(list or Motion.Connections,c);return c
     end
@@ -344,6 +344,11 @@ local function InstallMotion(M)
                 if controller.Alive then updateScroll(controller) end
             end
         end
+    end)
+    connect(RunService.PreRender,function(dt)
+        if not Motion.Alive then return end
+        local frameStep=1/Motion.AnimationFPS
+        local step=math.min(math.max(0,dt),frameStep)
         for r in pairs(Motion.Pending) do
             if r.dead or not r.object.Parent then Motion.Pending[r]=nil
             elseif not enabled() or not visible(r.object) then reset(r)
@@ -359,8 +364,16 @@ local function InstallMotion(M)
                     r.sequence=seq;r.pulse=false
                 end
                 if seq then
-                    seq.Elapsed=seq.Elapsed+math.max(0,dt)
-                    seq.Frame=math.min(Motion.AnimationFrames,math.floor(seq.Elapsed*Motion.AnimationFPS+1e-6)+1)
+                    local finished=false
+                    if not seq.Presented then seq.Presented=true
+                    else
+                        seq.Elapsed=seq.Elapsed+step
+                        if seq.Elapsed+1e-6>=frameStep then
+                            seq.Elapsed=math.max(0,seq.Elapsed-frameStep)
+                            if seq.Frame<Motion.AnimationFrames then seq.Frame=seq.Frame+1
+                            else finished=true end
+                        end
+                    end
                     local progress=(seq.Frame-1)/(Motion.AnimationFrames-1)
                     local alpha=1-(1-progress)^2
                     r.current=seq.FromScale+(desired-seq.FromScale)*alpha
@@ -370,7 +383,7 @@ local function InstallMotion(M)
                         r.current=r.current*(1-.035*pulse)
                         r.glowCurrent=math.min(r.glowCurrent,1-.62*pulse)
                     end
-                    if seq.Elapsed+1e-6>=Motion.AnimationFrames/Motion.AnimationFPS then
+                    if finished then
                         r.current=desired;r.glowCurrent=glow;r.sequence=nil
                     end
                 end
@@ -523,10 +536,10 @@ end
 return InstallMotion
 end)()
 local InstallOrbit = (function()
--- SATURN X Orbit 1.3.0 / BM
+-- SATURN X Orbit 1.3.1 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.3.0" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.3.1" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -540,10 +553,10 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.3.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
+    local Orbit={Version="1.3.1",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
         AnimationFrames=20,AnimationFPS=60}
-    local frameDuration=Orbit.AnimationFrames/Orbit.AnimationFPS
-    M.Orbit=Orbit;M.Build="1.5.0-orbit"
+    local frameStep=1/Orbit.AnimationFPS
+    M.Orbit=Orbit;M.Build="1.5.1-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -582,20 +595,46 @@ local function InstallOrbit(M)
         for key,value in pairs(t.Samples[1]) do o[key]=value end
         return t
     end
-    Orbit.FrameConnection=RunService.Heartbeat:Connect(function(dt)
+    -- Present at most one new pose per rendered frame. Discard stall debt;
+    -- every pose, including the first and last, gets a render before completion.
+    Orbit.FrameConnection=RunService.PreRender:Connect(function(dt)
+        local step=math.min(math.max(0,dt),frameStep)
         for o,t in pairs(Orbit.Tracks) do
             if not o.Parent then t:Cancel()
             else
-                t.Elapsed=t.Elapsed+math.max(0,dt)
-                local frame=not moving() and Orbit.AnimationFrames or
-                    math.min(Orbit.AnimationFrames,math.floor(t.Elapsed*Orbit.AnimationFPS+1e-6)+1)
-                if frame~=t.Frame then
-                    t.Frame=frame
-                    for key,value in pairs(t.Samples[frame]) do o[key]=value end
+                local finished=not moving()
+                if not t.Presented then t.Presented=true
+                else
+                    t.Elapsed=t.Elapsed+step
+                    if t.Elapsed+1e-6>=frameStep then
+                        t.Elapsed=math.max(0,t.Elapsed-frameStep)
+                        if t.Frame<Orbit.AnimationFrames then
+                            t.Frame=t.Frame+1
+                            for key,value in pairs(t.Samples[t.Frame]) do o[key]=value end
+                        else finished=true end
+                    end
                 end
-                if not moving() or t.Elapsed+1e-6>=frameDuration then
+                if finished then
                     for key,value in pairs(t.Target) do o[key]=value end
                     t:Cancel();if t.Complete then t.Complete() end
+                end
+            end
+        end
+        for _,controller in pairs(Orbit.Controllers) do
+            -- Staggered starts share the render clock, so wall-clock timers
+            -- cannot hide a slow menu while its animation is still playing.
+            local pending=controller.Delays;controller.Delays={}
+            for _,job in ipairs(pending) do
+                if controller.Alive and controller.Serial==job.Serial then
+                    job.Remaining=job.Remaining-step
+                    if not moving() or job.Remaining<=1e-6 then job.Run()
+                    else table.insert(controller.Delays,job) end
+                end
+            end
+            if controller.Alive and #controller.Delays==0 and not next(controller.FrameAnimations) then
+                local callbacks=controller.Completions;controller.Completions={}
+                for _,job in ipairs(callbacks) do
+                    if controller.Alive and controller.Serial==job.Serial then job.Run() end
                 end
             end
         end
@@ -699,7 +738,7 @@ local function InstallOrbit(M)
     function Orbit:Create(options)
         assert(self.Alive and #options.Names==8,"Orbit needs eight existing categories")
         if self.Controllers[options.Gui] then return self.Controllers[options.Gui] end
-        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},FrameAnimations={},
+        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},FrameAnimations={},Delays={},Completions={},
             Options=options,Planets={},Rings={},Sprites={},Angle=0,Hover={},Pointers={},FeedbackScales={}}
         self.Controllers[options.Gui]=C
         -- The orbit is the category picker. Show only the chosen page inside
@@ -722,13 +761,18 @@ local function InstallOrbit(M)
         end
         function C:Cancel()
             self.Serial=self.Serial+1
+            self.Delays={};self.Completions={}
             for o,t in pairs(self.Tweens) do t:Cancel();self.Tweens[o]=nil end
             self.Pointers={};self.Hover={}
             return self.Serial
         end
         local function later(serial,seconds,fn)
             if not moving() then fn();return end
-            task.delay(seconds,function() if C.Alive and C.Serial==serial then fn() end end)
+            table.insert(C.Delays,{Serial=serial,Remaining=seconds,Run=fn})
+        end
+        local function afterAnimations(serial,fn)
+            if not moving() then fn();return end
+            table.insert(C.Completions,{Serial=serial,Run=fn})
         end
         -- Animate page content independently of the window's responsive UIScale.
         local pagePosition=content and content.Position
@@ -969,7 +1013,7 @@ local function InstallOrbit(M)
             animate20(portalScale,{Scale=1.45})
             later(serial,.12,function() animate20(disk,{GroupTransparency=0});animate20(diskScale,{Scale=1},Enum.EasingStyle.Quint) end)
             later(serial,.24,function() animate20(portalArt,{ImageTransparency=1});animate20(portalFallback,{BackgroundTransparency=1}) end)
-            later(serial,.40+frameDuration,function() portal.Visible=false;self.State="orbit" end)
+            afterAnimations(serial,function() portal.Visible=false;self.State="orbit" end)
         end
         function C:SetOpen(value)
             if not self.Alive or self.Closing then return end
@@ -981,7 +1025,7 @@ local function InstallOrbit(M)
             if fromPage and moving() then
                 animate20(options.Window,{GroupTransparency=1})
                 if pageScale then animate20(pageScale,{Scale=.965},Enum.EasingStyle.Quint) end
-                later(serial,frameDuration,function() options.Window.Visible=false;resetPage() end)
+                afterAnimations(serial,function() options.Window.Visible=false;resetPage() end)
             else options.Window.Visible=false;resetPage() end
             stage.Visible=true;disk.Visible=not fromPage;portal.Visible=moving()
             portalArt.Position=UDim2.fromScale(0,-2)
@@ -989,7 +1033,7 @@ local function InstallOrbit(M)
             portalFallback.BackgroundColor3=Color3.fromRGB(0,0,0);portalFallback.BackgroundTransparency=0
             animate20(diskScale,{Scale=.08});animate20(disk,{GroupTransparency=1})
             animate20(portalScale,{Scale=.05});animate20(portalArt,{ImageTransparency=1})
-            later(serial,frameDuration,function() stage.Visible=false;portal.Visible=false;self.State="closed" end)
+            afterAnimations(serial,function() stage.Visible=false;portal.Visible=false;self.State="closed" end)
         end
         function C:Back()
             if not self.Alive or self.Closing then return end
@@ -997,13 +1041,13 @@ local function InstallOrbit(M)
             local serial=self:Cancel();self.State="returning"
             animate20(options.Window,{GroupTransparency=1})
             if pageScale then animate20(pageScale,{Scale=.965}) end
-            later(serial,frameDuration,function() self:Open(true) end)
+            afterAnimations(serial,function() self:Open(true) end)
         end
         function C:Close(callback)
             if not self.Alive or self.Closing then return end
             self:SetOpen(false);self.Closing=true
             local serial=self.Serial
-            later(serial,frameDuration,callback)
+            afterAnimations(serial,callback)
         end
         connect(core.Activated,function()
             if C.State=="orbit" and C.Selected then C.Selected=nil;C:Refresh();M:Click() end

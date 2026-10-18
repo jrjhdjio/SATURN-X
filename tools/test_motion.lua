@@ -57,7 +57,7 @@ task={defer=function(f)table.insert(deferred,f)end,delay=function(_,f)table.inse
 local function flush()local guard=0;while #deferred>0 do guard=guard+1;assert(guard<100,'recursive rescan');local q=deferred;deferred={};for _,f in ipairs(q)do f()end end end
 local function runDelayed()local q=delayed;delayed={};for _,f in ipairs(q)do f()end end
 local clock=0;os.clock=function()return clock end
-local RunService={Heartbeat=signal()};local UIS={InputEnded=signal(),InputChanged=signal(),WindowFocusReleased=signal()}
+local RunService={Heartbeat=signal(),PreRender=signal()};local UIS={InputEnded=signal(),InputChanged=signal(),WindowFocusReleased=signal()}
 local GuiService=obj('GuiService',nil,{ReducedMotionEnabled=false});local saved
 local HttpService={JSONEncode=function(_,settings)saved={};for k,v in pairs(settings)do saved[k]=v end;return 'mock-json'end}
 writefile=function(p,c)assert(p=='SATURN_X_shared_settings_v1.json'and c=='mock-json')end
@@ -84,7 +84,7 @@ function M:Set(k,v)self.Settings[k]=v;for _,props in pairs(self.Bindings)do for 
 function M:Destroy()self.Alive=false;sharedGui:Destroy()end
 function M:Click()end;function M:OpenSettings()end
 local install=assert(loadfile(path))();local motion=install(M)
-local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
+local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.PreRender:Fire(1/30);RunService.Heartbeat:Fire(1/30);flush()end end
 local function count(t)local n=0;for _ in pairs(t)do n=n+1 end;return n end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
 local initialConnections=connectionCount();assert(install(M)==motion);assert(connectionCount()==initialConnections);pass('one shared controller on repeated installation')
@@ -111,7 +111,7 @@ page.CanvasPosition=Vector2.new(0,80);local canvas=page.CanvasPosition;tick();as
 assert(r.slot.Size==sizes[button]and page.CanvasPosition==canvas);assert(r.stroke.Transparency<1)
 r.slot.AbsolutePosition=Vector2.new(0,130);page.CanvasPosition=Vector2.new(0,90);tick();assert(r.scale.Scale==1);pass('scroll edge scale 96–100% without changing slot or canvas geometry')
 local pointer={UserInputType=Enum.UserInputType.Touch,Position=Vector3.new(20,20,0)}
-button.InputBegan:Fire(pointer);tick(6);assert(r.scale.Scale<.98);UIS.InputEnded:Fire(pointer);tick();assert(r.scale.Scale==1);assert(actions==0)
+button.InputBegan:Fire(pointer);tick(12);assert(r.scale.Scale<.98);UIS.InputEnded:Fire(pointer);tick();assert(r.scale.Scale==1);assert(actions==0)
 button.InputBegan:Fire(pointer);pointer.Position=Vector3.new(20,40,0);UIS.InputChanged:Fire(pointer);tick();assert(not r.pressed and r.scale.Scale==1)
 button.Activated:Fire();tick();assert(actions==1);pass('touch press, release outside and drag cancellation leave actions untouched')
 button.MouseEnter:Fire();tick();assert(r.stroke.Transparency<1 and r.scale.Scale<=1);button.MouseLeave:Fire();tick();assert(r.stroke.Transparency==1)
@@ -143,19 +143,35 @@ for i,o in ipairs(original)do assert(restored[i]==o)end
 button.Activated:Fire();assert(actions==2);pass('unbind restores original parents, row order, dimensions and action handlers')
 local renderers=#M.Renderers
 motion.Version='1.0.0';local oldMotion=motion;motion=install(M);flush()
-assert(not oldMotion.Alive and motion~=oldMotion and motion.Version=='1.1.0')
+assert(not oldMotion.Alive and motion~=oldMotion and motion.Version=='1.1.1')
 assert(motion.Roots[root] and motion.Roots[M.Gui] and #M.Renderers==renderers)
 local record=motion.Roots[root].Records[button]
 record.slot.AbsolutePosition=Vector2.new(0,130);page.CanvasPosition=Vector2.new(0,0);tick()
 button.MouseEnter:Fire()
-for frame=2,20 do
-    clock=clock+1/60;RunService.Heartbeat:Fire(1/60);flush()
+for frame=1,20 do
+    clock=clock+1/60;RunService.PreRender:Fire(1/60);flush()
     assert(record.sequence and record.sequence.Frame==frame)
 end
-RunService.Heartbeat:Fire(1/60);assert(record.sequence==nil and record.stroke.Transparency==.38)
+RunService.PreRender:Fire(1/60);assert(record.sequence==nil and record.stroke.Transparency==.38)
 button.Activated:Fire();RunService.Heartbeat:Fire(.5)
-assert(record.sequence==nil and record.scale.Scale==1)
-pass('live upgrade preserves buttons and shared settings; hover has 20 poses and slow frames catch up')
+assert(record.sequence==nil and record.pulse)
+RunService.PreRender:Fire(.5);assert(record.sequence and record.sequence.Frame==1)
+for frame=2,20 do RunService.PreRender:Fire(.5);assert(record.sequence and record.sequence.Frame==frame) end
+RunService.PreRender:Fire(.5);assert(record.sequence==nil and record.scale.Scale==1)
+pass('live upgrade preserves controls; hover and tap retain every pose across half-second renders')
+for _,fps in ipairs({10,30,60,144}) do
+    button.Activated:Fire()
+    local seen,last=0,0
+    for render=1,400 do
+        RunService.PreRender:Fire(render==5 and .8 or 1/fps)
+        if not record.sequence then assert(seen==20);break end
+        local frame=record.sequence.Frame
+        assert(frame==last or frame==last+1)
+        if frame~=last then seen=seen+1;last=frame end
+    end
+    assert(seen==20 and not record.sequence)
+end
+pass('button feedback retains all 20 poses at 10/30/60/144 FPS and through a long stall')
 M:Destroy();M:Destroy();flush();assert(not motion.Alive and not next(motion.Roots)and not next(motion.Pending))
 for _,c in ipairs(motion.Connections)do assert(not c.Connected)end
 pass('service cleanup is idempotent with no motion connections')
