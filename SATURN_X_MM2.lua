@@ -47,7 +47,7 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.1.0-motion
+-- SATURN X media / BM / 1.2.0-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
@@ -476,7 +476,397 @@ local function InstallMotion(M)
 end
 return InstallMotion
 end)()
-if type(existing) == "table" and existing.Version == "1.0.0" and existing.Alive then InstallMotion(existing);return existing end
+local InstallOrbit = (function()
+-- SATURN X Orbit 1.0.0 / BM
+-- UI-only extension. The original eight pages and their handlers stay in place.
+local function InstallOrbit(M)
+    if M.Orbit and M.Orbit.Alive then return M.Orbit end
+    local RunService=game:GetService("RunService")
+    local TweenService=game:GetService("TweenService")
+    local UIS=game:GetService("UserInputService")
+    local Orbit={Version="1.0.0",Alive=true,Controllers={},Assets={},Jobs={}}
+    M.Orbit=Orbit;M.Build="1.2.0-orbit"
+    local function moving()
+        return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
+    end
+    local strings={
+        choose={th="แตะดาวเพื่อเลือกหมวด",en="Tap a planet to explore",zh="轻点行星查看分类"},
+        again={th="แตะดาวเดิมอีกครั้งเพื่อเปิด",en="Tap this planet again to open",zh="再次轻点此行星打开"},
+        back={th="แตะโลโก้เพื่อล้างการเลือก",en="Tap the logo to clear selection",zh="轻点标志取消选择"},
+        collapse={th="ย่อเมนู",en="Collapse",zh="收起"},
+        ready={th="8 หมวด • SATURN X",en="8 categories • SATURN X",zh="8 个分类 • SATURN X"},
+        fallback={th="ใช้ไอคอนสำรอง • ภาพยังไม่พร้อม",en="Using fallback icons",zh="正在使用备用图标"},
+        default={th="ดูตัวเลือกของหมวดนี้",en="Explore this category",zh="查看此分类的选项"},
+    }
+    local details={
+        ["อัปเดตแรก"]={th="ข่าวและการเปลี่ยนแปลงของสคริปต์",en="What's new in this script",zh="脚本更新与改动"},
+        ["เครดิตผู้สร้าง"]={th="ผู้สร้างและเครดิต • BM",en="Creator and credits • BM",zh="作者与制作名单 • BM"},
+        ["โปรไฟล์ผู้เล่น"]={th="ข้อมูลตัวละครและผู้เล่นของคุณ",en="Your player and character info",zh="你的玩家与角色信息"},
+        ["ดึงของ"]={th="ตัวเลือกจัดการไอเท็ม",en="Item interaction options",zh="物品交互选项"},
+        ["ค้นหาไอเท็ม"]={th="ค้นหาและเลือกไอเท็ม",en="Find and select items",zh="查找和选择物品"},
+        ["บิน"]={th="ตัวเลือกการบินและการควบคุม",en="Flight options and controls",zh="飞行选项与控制"},
+        ["เคลื่อนที่"]={th="ปรับตัวเลือกการเคลื่อนที่",en="Adjust movement options",zh="调整移动选项"},
+        ["จุดบันทึก"]={th="จัดการตำแหน่งที่บันทึกไว้",en="Manage saved locations",zh="管理已保存的位置"},
+        ["ภาพ / ตั้งค่า"]={th="ตัวเลือกการแสดงผลและตั้งค่า",en="Visual options and settings",zh="显示选项与设置"},
+        ["ภาพ / กล้อง"]={th="ปรับภาพและตัวเลือกกล้อง",en="Visual and camera options",zh="显示与相机选项"},
+        ["ตั้งค่า"]={th="ภาษา เสียง และตัวเลือกของเมนู",en="Language, audio and menu options",zh="语言、声音与菜单选项"},
+        ["แต่งตัว"]={th="ค้นหาชื่อและดูตัวเลือกชุด",en="Search usernames and outfits",zh="搜索用户名与装扮"},
+        ["รายชื่อล่าสุด"]={th="ดูรายชื่อที่ใช้ล่าสุด",en="Browse recent usernames",zh="查看最近的用户名"},
+        ["แมว / จุดกด"]={th="ตัวเลือกแมวและจุดโต้ตอบ",en="Cats and interaction points",zh="猫咪与交互点"},
+        ["ผู้เล่น / บทบาท"]={th="ข้อมูลผู้เล่นและบทบาท",en="Players and role information",zh="玩家与角色信息"},
+        ["เหรียญ / ปืนตก"]={th="ตัวเลือกเหรียญและปืนที่ตก",en="Coins and dropped weapons",zh="金币与掉落武器"},
+        ["จุด / กล้อง"]={th="ตำแหน่งและตัวเลือกกล้อง",en="Locations and camera options",zh="位置与相机选项"},
+        ["ช่วยเล็ง"]={th="ตัวเลือกการช่วยเล็ง",en="Aim assistance options",zh="瞄准辅助选项"},
+        ["ผู้เล่น / บอท"]={th="ข้อมูลผู้เล่นและบอท",en="Player and bot information",zh="玩家与机器人信息"},
+        ["เป้า / กล้อง"]={th="ตัวเลือกเป้าและกล้อง",en="Crosshair and camera options",zh="准星与相机选项"},
+        ["ประตู / ไอเท็ม"]={th="ตัวเลือกประตูและไอเท็ม",en="Doors and item options",zh="门与物品选项"},
+        ["ศัตรู / แจ้งเตือน"]={th="ข้อมูลศัตรูและการแจ้งเตือน",en="Enemies and alerts",zh="敌人与提示"},
+        ["เก็บของ / โต้ตอบ"]={th="ตัวเลือกเก็บของและโต้ตอบ",en="Collection and interaction options",zh="拾取与交互选项"},
+        ["ช่วยตกปลา"]={th="ตัวเลือกการช่วยตกปลา",en="Fishing assistance options",zh="钓鱼辅助选项"},
+        ["โซน / สำรวจ"]={th="ดูโซนและตัวเลือกสำรวจ",en="Zones and exploration options",zh="区域与探索选项"},
+        ["ใส่รหัส / เล่นท่า"]={th="ใส่รหัสและเลือกท่าแอนิเมชัน",en="Enter IDs and choose animations",zh="输入编号并选择动作"},
+        ["ท่าโปรด"]={th="จัดการท่าที่บันทึกไว้",en="Manage saved animations",zh="管理收藏的动作"},
+        ["ปรับการเล่น"]={th="ปรับตัวเลือกการเล่นแอนิเมชัน",en="Animation playback options",zh="动作播放选项"},
+        ["ท่าในตัวละคร"]={th="ดูแอนิเมชันของตัวละคร",en="Browse character animations",zh="查看角色动作"},
+        ["เสียง / ตั้งค่า"]={th="ภาษา เสียง และตัวเลือกของเมนู",en="Language, audio and menu options",zh="语言、声音与菜单选项"},
+        ["ไอเท็ม / ดึงของ"]={th="ตัวเลือกไอเท็มและการโต้ตอบ",en="Items and interaction options",zh="物品与交互选项"},
+        ["ผู้เล่น / NPC"]={th="ข้อมูลผู้เล่นและ NPC",en="Players and NPC information",zh="玩家与 NPC 信息"},
+    }
+    local function tr(row) return row[M.Settings.language] or row.th end
+    local function own(class,props,parent)
+        local o=Instance.new(class)
+        o:SetAttribute("SATURN_X_NoMotion",true)
+        o:SetAttribute("SATURN_X_NoTranslate",true)
+        for k,v in pairs(props) do o[k]=v end
+        o.Parent=parent;return o
+    end
+    local function round(o) own("UICorner",{CornerRadius=UDim.new(1,0)},o) end
+    local silver=Color3.fromRGB(219,229,244)
+    local muted=Color3.fromRGB(156,172,195)
+    local colors={Color3.fromRGB(197,211,229),Color3.fromRGB(220,153,105),Color3.fromRGB(130,215,235),
+        Color3.fromRGB(106,196,156),Color3.fromRGB(230,183,101),Color3.fromRGB(179,149,227),
+        Color3.fromRGB(105,158,222),Color3.fromRGB(224,220,201)}
+    local specs={
+        atlas={remote="SATURN_X_orbit_atlas_v1.png",size=2411469,kind="png"},
+        wave={remote="SATURN_X_orbit_wave_v1.wav",size=70604,kind="wav"},
+    }
+    local function valid(data,spec)
+        if type(data)~="string" or #data~=spec.size then return false end
+        if spec.kind=="png" then return data:sub(1,8)=="\137PNG\r\n\26\n" end
+        return data:sub(1,4)=="RIFF" and data:sub(9,12)=="WAVE"
+    end
+    function Orbit:Asset(kind,callback)
+        if self.Assets[kind] then callback(self.Assets[kind]);return end
+        if self.Jobs[kind] then table.insert(self.Jobs[kind],callback);return end
+        self.Jobs[kind]={callback}
+        task.spawn(function()
+            local ok,id=pcall(function()
+                local register=type(getcustomasset)=="function" and getcustomasset or
+                    (type(getsynasset)=="function" and getsynasset)
+                assert(register and type(writefile)=="function","local assets unavailable")
+                local spec=assert(specs[kind]);local path="SATURN_X_media_"..spec.remote
+                local data
+                if type(readfile)=="function" then
+                    local readOK,value=pcall(readfile,path)
+                    if readOK and valid(value,spec) then data=value end
+                end
+                if not data then
+                    data=game:HttpGet("https://raw.githubusercontent.com/jrjhdjio/SATURN-X/main/assets/"..spec.remote)
+                    assert(valid(data,spec),"invalid orbit asset");writefile(path,data)
+                end
+                local result=register(path);assert(type(result)=="string" and result~="","invalid local asset")
+                return result
+            end)
+            local jobs=self.Jobs[kind] or {};self.Jobs[kind]=nil
+            if not self.Alive or not M.Alive then return end
+            if ok then self.Assets[kind]=id end
+            for _,fn in ipairs(jobs) do pcall(fn,ok and id or nil) end
+        end)
+    end
+    function Orbit:Create(options)
+        assert(self.Alive and #options.Names==8,"Orbit needs eight existing categories")
+        if self.Controllers[options.Gui] then return self.Controllers[options.Gui] end
+        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},
+            Options=options,Planets={},Rings={},Sprites={},Angle=0,Hover={},Pointers={}}
+        self.Controllers[options.Gui]=C
+        local function connect(signal,fn)
+            local c=signal:Connect(fn);table.insert(C.Connections,c);return c
+        end
+        local function animate(o,props,duration)
+            if C.Tweens[o] then C.Tweens[o]:Cancel();C.Tweens[o]=nil end
+            if not C.Alive or not o.Parent then return end
+            if not moving() or duration==0 then for k,v in pairs(props) do o[k]=v end;return end
+            local t=TweenService:Create(o,TweenInfo.new(duration or .2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props)
+            C.Tweens[o]=t;t:Play()
+        end
+        function C:Cancel()
+            self.Serial=self.Serial+1
+            for o,t in pairs(self.Tweens) do t:Cancel();self.Tweens[o]=nil end
+            self.Pointers={};self.Hover={}
+            return self.Serial
+        end
+        local function later(serial,seconds,fn)
+            if not moving() then fn();return end
+            task.delay(seconds,function() if C.Alive and C.Serial==serial then fn() end end)
+        end
+        local stage=own("Frame",{Name="SATURN_X_Orbit",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(600,600),Visible=false,ZIndex=20},options.Root)
+        C.Stage=stage
+        local fit=own("UIScale",{Scale=1},stage);C.Fit=fit
+        local disk=own("CanvasGroup",{Name="OrbitalMenu",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(1,1),GroupTransparency=0,ZIndex=20},stage)
+        local diskScale=own("UIScale",{Scale=1},disk)
+        local backdrop=own("Frame",{BackgroundColor3=Color3.fromRGB(8,12,21),BackgroundTransparency=.08,
+            Position=UDim2.fromOffset(10,10),Size=UDim2.fromOffset(580,580),BorderSizePixel=0,ZIndex=1},disk)
+        round(backdrop)
+        own("UIStroke",{Color=Color3.fromRGB(77,95,121),Transparency=.5,Thickness=1},backdrop)
+        own("UIGradient",{Rotation=60,Color=ColorSequence.new(Color3.fromRGB(25,37,57),Color3.fromRGB(4,6,12))},backdrop)
+        for i=1,28 do
+            local a=i*2.399963;local r=110+(i*37%169)
+            local dot=own("Frame",{BackgroundColor3=silver,BackgroundTransparency=.60+(i%3)*.1,BorderSizePixel=0,
+                Position=UDim2.fromOffset(300+math.cos(a)*r,300+math.sin(a)*r),Size=UDim2.fromOffset(i%5==0 and 3 or 2,2),ZIndex=2},disk)
+            round(dot)
+        end
+        local function text(parent,name,x,y,w,h,size,color)
+            return own("TextLabel",{Name=name,Text="",BackgroundTransparency=1,Position=UDim2.fromOffset(x,y),
+                Size=UDim2.fromOffset(w,h),Font=Enum.Font.GothamMedium,TextSize=size,TextColor3=color or silver,
+                TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center,ZIndex=6},parent)
+        end
+        local function sprite(parent,index,size)
+            local col=(index-1)%4;local row=math.floor((index-1)/4)
+            local y=row==0 and 0 or (row==1 and 341 or 683)
+            local icon=own("ImageLabel",{Name="OrbitSprite"..index,Image="",BackgroundTransparency=1,
+                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(size,size),
+                ImageRectOffset=Vector2.new(col*384,y),ImageRectSize=Vector2.new(384,row==1 and 342 or 341),
+                ScaleType=Enum.ScaleType.Fit,ZIndex=7},parent)
+            table.insert(C.Sprites,icon);return icon
+        end
+        local core=own("TextButton",{Name="CenterLogo",Text="",AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(13,19,30),
+            BackgroundTransparency=.08,BorderSizePixel=0,Position=UDim2.fromOffset(184,184),Size=UDim2.fromOffset(232,232),ZIndex=5},disk)
+        round(core);own("UIStroke",{Color=silver,Transparency=.72,Thickness=1},core)
+        local centerLogo=own("ImageLabel",{Name="OriginalSaturnLogo",Image="",BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
+            AnchorPoint=Vector2.new(.5,0),Position=UDim2.fromOffset(116,4),Size=UDim2.fromOffset(132,74),ZIndex=6},core)
+        local logoFallback=text(core,"LogoFallback",44,10,144,65,30);logoFallback.Text="SATURN X"
+        local heading=text(core,"CategoryTitle",10,80,212,44,22)
+        local description=text(core,"CategoryDetail",12,126,208,48,17,muted)
+        local hint=text(core,"Instructions",12,178,208,42,18)
+        local status=text(disk,"AssetStatus",117,554,366,24,13,muted)
+        local badge=text(disk,"Brand",182,32,236,24,15,muted);badge.Text="SATURN X  /  ORBIT"
+        for i=1,8 do
+            local radius=160+(i-1)*10
+            local ring=own("Frame",{Name="OrbitRing"..i,BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
+                Position=UDim2.fromOffset(300,300),Size=UDim2.fromOffset(radius*2,radius*2),ZIndex=3},disk)
+            round(ring)
+            local line=own("UIStroke",{Color=colors[i],Transparency=.80,Thickness=1},ring)
+            C.Rings[i]={Object=ring,Stroke=line,Scale=own("UIScale",{Scale=1},ring)}
+            local b=own("TextButton",{Name="Planet"..i,Text="",AutoButtonColor=false,BackgroundTransparency=1,
+                AnchorPoint=Vector2.new(.5,.5),Size=UDim2.fromOffset(84,84),ZIndex=10},disk)
+            local scale=own("UIScale",{Scale=1},b)
+            local fallback=own("Frame",{Name="FallbackPlanet",BackgroundColor3=colors[i],BackgroundTransparency=.2,
+                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(49,49),BorderSizePixel=0,ZIndex=6},b)
+            round(fallback)
+            own("UIGradient",{Rotation=45,Color=ColorSequence.new(Color3.fromRGB(255,255,255),Color3.fromRGB(35,43,60))},fallback)
+            local art=sprite(b,i,104)
+            local number=text(b,"CategoryNumber",24,64,36,20,15);number.Text=string.format("%02d",i)
+            local outline=own("Frame",{Name="SelectedRing",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
+                Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(64,64),ZIndex=8},b)
+            round(outline)
+            local lineSelected=own("UIStroke",{Color=colors[i],Transparency=1,Thickness=2},outline)
+            local ripple=own("Frame",{Name="RingWave",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
+                Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(50,50),ZIndex=8},b)
+            round(ripple)
+            local rippleLine=own("UIStroke",{Color=colors[i],Transparency=1,Thickness=2},ripple)
+            C.Planets[i]={Button=b,Scale=scale,Fallback=fallback,Image=art,Outline=lineSelected,Ripple=ripple,RippleLine=rippleLine,Radius=radius}
+            connect(b.Activated,function() C:Tap(i) end)
+            connect(b.MouseEnter,function() C.Hover[b]=true end)
+            connect(b.MouseLeave,function() C.Hover[b]=nil;animate(scale,{Scale=1},.12) end)
+            connect(b.SelectionGained,function() C.Hover[b]=true end)
+            connect(b.SelectionLost,function() C.Hover[b]=nil end)
+            connect(b.InputBegan,function(input)
+                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+                    C.Pointers[input]=true
+                    if M.Settings.pressMotionEnabled~=false then animate(scale,{Scale=.96},.08) end
+                end
+            end)
+        end
+        local black=own("TextButton",{Name="BlackHoleCollapse",Text="",AutoButtonColor=false,BackgroundTransparency=1,
+            Position=UDim2.fromOffset(506,10),Size=UDim2.fromOffset(84,84),ZIndex=11},disk)
+        local blackFallback=text(black,"Fallback",12,5,60,60,38);blackFallback.Text="◉"
+        sprite(black,9,104)
+        local collapseLabel=text(black,"CollapseLabel",-10,66,104,22,14)
+        connect(black.Activated,function() C:SetOpen(false) end)
+        local portal=own("Frame",{Name="Portal",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(300,300),
+            Size=UDim2.fromOffset(220,220),Visible=false,ZIndex=30},stage)
+        local portalFallback=own("Frame",{BackgroundColor3=silver,BackgroundTransparency=.35,AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(.38,.38),BorderSizePixel=0,ZIndex=1},portal)
+        round(portalFallback)
+        local portalArt=sprite(portal,10,260)
+        local portalScale=own("UIScale",{Scale=1},portal)
+        -- The existing header logo is a return control; window dimensions stay intact.
+        local returnButton=own("TextButton",{Name="ReturnToOrbit",Text="",AutoButtonColor=false,BackgroundTransparency=1,
+            Size=UDim2.fromScale(1,1),ZIndex=options.Logo.ZIndex+4},options.Logo)
+        local returnBadge=text(returnButton,"OrbitBadge",28,28,18,18,15);returnBadge.Text="↶"
+        connect(returnButton.Activated,function() C:Open(true) end)
+        local minText=options.Minimize.Text
+        options.Minimize.Text=""
+        local miniArt=sprite(options.Minimize,9,48)
+        local miniFallback=text(options.Minimize,"BlackHoleFallback",0,0,36,36,21);miniFallback.Text="◉"
+        C.ReturnButton=returnButton;C.MiniArt=miniArt;C.MiniFallback=miniFallback
+        local function layout()
+            local available=options.Root.AbsoluteSize
+            if available.X>0 and available.Y>0 then fit.Scale=math.min(1,(available.X-16)/600,(available.Y-16)/600) end
+        end
+        function C:PositionPlanets()
+            for i,p in ipairs(self.Planets) do
+                local angle=self.Angle+(i-1)*math.pi/4-math.pi/2
+                p.Button.Position=UDim2.fromOffset(300+math.cos(angle)*p.Radius,300+math.sin(angle)*p.Radius)
+            end
+        end
+        function C:Refresh()
+            if not self.Alive then return end
+            local selected=self.Selected
+            heading.Text=selected and M:T(options.Names[selected]) or "SATURN X"
+            description.Text=selected and tr(details[options.Names[selected]] or strings.default) or tr(strings.ready)
+            hint.Text=tr(selected and strings.again or strings.choose)
+            core:SetAttribute("ActionHint",tr(strings.back))
+            status.Text=self.AtlasFailed and tr(strings.fallback) or ""
+            collapseLabel.Text=tr(strings.collapse)
+            for i,p in ipairs(self.Planets) do
+                p.Button:SetAttribute("CategoryTitle",M:T(options.Names[i]))
+                p.Button:SetAttribute("CategoryDetail",tr(details[options.Names[i]] or strings.default))
+                p.Outline.Transparency=i==selected and .12 or 1
+                C.Rings[i].Stroke.Transparency=i==selected and .42 or .80
+                if not moving() then p.Scale.Scale=1;p.RippleLine.Transparency=1 end
+            end
+        end
+        local function wave(index)
+            M:Click()
+            if Orbit.Wave then M:PlayEffect(Orbit.Wave) end
+            local p=C.Planets[index]
+            if not moving() then return end
+            if C.Tweens[p.Ripple] then C.Tweens[p.Ripple]:Cancel() end
+            if C.Tweens[p.RippleLine] then C.Tweens[p.RippleLine]:Cancel() end
+            p.Ripple.Size=UDim2.fromOffset(45,45);p.RippleLine.Transparency=.12
+            animate(p.Ripple,{Size=UDim2.fromOffset(112,112)},.55)
+            animate(p.RippleLine,{Transparency=1},.55)
+            animate(p.Scale,{Scale=1},.2)
+        end
+        function C:Tap(index)
+            if not self.Alive or self.State~="orbit" or not self.Planets[index] then return end
+            wave(index)
+            if self.Selected~=index then self.Selected=index;self:Refresh();return end
+            self:Cancel();self.State="category";stage.Visible=false;portal.Visible=false
+            options.Window.Visible=true;options.Window.GroupTransparency=0;options.Floating.Visible=false
+            options.OnSelect(index);options.OnVisible(true);options.PlayWindow()
+        end
+        function C:Open(sound)
+            if not self.Alive then return end
+            local serial=self:Cancel();self.State="opening";self.Selected=nil
+            options.OnVisible(true);options.Window.Visible=false;options.Window.GroupTransparency=0;options.Floating.Visible=false
+            stage.Visible=true;disk.Visible=true;disk.GroupTransparency=moving() and 1 or 0;diskScale.Scale=moving() and .82 or 1
+            portal.Visible=moving();portalScale.Scale=.3;portalArt.ImageTransparency=0
+            portalArt.ImageRectOffset=Vector2.new(384,683);portalArt.ImageRectSize=Vector2.new(384,341)
+            portalFallback.BackgroundColor3=silver;portalFallback.BackgroundTransparency=.35
+            self:Refresh();layout();self:PositionPlanets()
+            for i,r in ipairs(self.Rings) do
+                r.Scale.Scale=moving() and .3 or 1;r.Stroke.Transparency=moving() and 1 or .80
+                later(serial,.12+i*.035,function() animate(r.Scale,{Scale=1},.32);animate(r.Stroke,{Transparency=.80},.32) end)
+            end
+            if sound then options.PlayWindow() end
+            animate(portalScale,{Scale=1.45},.36)
+            later(serial,.12,function() animate(disk,{GroupTransparency=0},.34);animate(diskScale,{Scale=1},.4) end)
+            later(serial,.24,function() animate(portalArt,{ImageTransparency=1},.28);animate(portalFallback,{BackgroundTransparency=1},.28) end)
+            later(serial,.62,function() portal.Visible=false;self.State="orbit" end)
+        end
+        function C:SetOpen(value)
+            if not self.Alive then return end
+            if value then self:Open(true);return end
+            if self.State=="closed" or self.State=="collapsing" then return end
+            local serial=self:Cancel();self.State="collapsing";self.Selected=nil
+            options.OnVisible(false);options.Window.Visible=false;options.Floating.Visible=true;options.PlayWindow()
+            stage.Visible=true;disk.Visible=true;portal.Visible=moving()
+            portalArt.ImageRectOffset=Vector2.new(0,683);portalArt.ImageRectSize=Vector2.new(384,341)
+            portalArt.ImageTransparency=0;portalScale.Scale=.6
+            portalFallback.BackgroundColor3=Color3.fromRGB(0,0,0);portalFallback.BackgroundTransparency=0
+            animate(diskScale,{Scale=.08},.3);animate(disk,{GroupTransparency=1},.3)
+            animate(portalScale,{Scale=1.1},.22)
+            later(serial,.22,function() animate(portalScale,{Scale=.05},.18);animate(portalArt,{ImageTransparency=1},.18) end)
+            later(serial,.42,function() stage.Visible=false;portal.Visible=false;self.State="closed" end)
+        end
+        connect(core.Activated,function()
+            if C.State=="orbit" and C.Selected then C.Selected=nil;C:Refresh();M:Click() end
+        end)
+        connect(UIS.InputEnded,function(input)
+            if C.Pointers[input] then
+                C.Pointers[input]=nil
+                for _,p in ipairs(C.Planets) do animate(p.Scale,{Scale=1},.12) end
+            end
+        end)
+        connect(UIS.WindowFocusReleased,function()
+            C.Pointers={};C.Hover={};C.Focused=false
+            for _,p in ipairs(C.Planets) do p.Scale.Scale=1 end
+        end)
+        connect(UIS.WindowFocused,function() C.Focused=true end)
+        local elapsed=0
+        connect(RunService.Heartbeat,function(dt)
+            if not C.Alive or C.State~="orbit" or C.Selected or C.Focused==false or not moving() or next(C.Hover) or next(C.Pointers) then return end
+            elapsed=elapsed+dt;if elapsed<1/30 then return end
+            C.Angle=(C.Angle+math.min(elapsed,.1)*.014)%(math.pi*2);elapsed=0;C:PositionPlanets()
+        end)
+        connect(options.Root:GetPropertyChangedSignal("AbsoluteSize"),layout)
+        function C:Destroy()
+            if not self.Alive then return end
+            self:Cancel();self.Alive=false;Orbit.Controllers[options.Gui]=nil
+            for _,c in ipairs(self.Connections) do c:Disconnect() end;self.Connections={}
+            stage:Destroy();returnButton:Destroy();miniArt:Destroy();miniFallback:Destroy()
+            if options.Minimize.Parent then options.Minimize.Text=minText end
+        end
+        connect(options.Gui.Destroying,function() C:Destroy() end)
+        M:Asset("logo",function(id)
+            if C.Alive and id then centerLogo.Image=id;logoFallback.Visible=false end
+        end)
+        self:Asset("atlas",function(id)
+            if not C.Alive then return end
+            C.AtlasFailed=not id
+            if id then
+                for _,icon in ipairs(C.Sprites) do icon.Image=id end
+                -- Keep fallback planets until the actual texture reports loaded.
+                local function loaded()
+                    if not C.Alive then return end
+                    local ready=C.Planets[1].Image.IsLoaded
+                    for _,p in ipairs(C.Planets) do p.Fallback.Visible=not ready end
+                    blackFallback.Visible=not ready;miniFallback.Visible=not ready
+                    portalFallback.Visible=not ready
+                    C.AtlasFailed=not ready;C:Refresh()
+                end
+                connect(C.Planets[1].Image:GetPropertyChangedSignal("IsLoaded"),loaded);loaded()
+            end
+            C:Refresh()
+        end)
+        C:PositionPlanets();C:Refresh();layout()
+        return C
+    end
+    local baseRefresh=M.Refresh
+    function M:Refresh()
+        baseRefresh(self)
+        for _,controller in pairs(Orbit.Controllers) do controller:Refresh() end
+    end
+    function Orbit:Destroy()
+        if not self.Alive then return end;self.Alive=false
+        local all={};for _,c in pairs(self.Controllers) do table.insert(all,c) end
+        for _,c in ipairs(all) do c:Destroy() end
+        self.Jobs={};if self.Wave then self.Wave:Destroy() end
+    end
+    local baseDestroy=M.Destroy
+    function M:Destroy() Orbit:Destroy();return baseDestroy(self) end
+    Orbit:Asset("wave",function(id)
+        if id and Orbit.Alive then Orbit.Wave=own("Sound",{Name="OrbitRingWave",SoundId=id,Volume=1,SoundGroup=M.EffectsGroup},M.Audio) end
+    end)
+    return Orbit
+end
+return InstallOrbit
+end)()
+if type(existing) == "table" and existing.Version == "1.0.0" and existing.Alive then InstallMotion(existing);InstallOrbit(existing);return existing end
 local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -1669,6 +2059,7 @@ for _,kind in ipairs({"logo","window","click"}) do
 end
 M:SyncAudio();M:Refresh();scalePanels()
 InstallMotion(M)
+InstallOrbit(M)
 return M
 
 end)()
@@ -2792,6 +3183,15 @@ end
 local function updateMediaInfo()
     if S.alive then mediaInfo.Text = "โลโก้: " .. S.media.logo .. "\nเปิด/ปิด: " .. S.media.window .. "\nคลิก: " .. S.media.click end
 end
+-- SATURN X orbital navigation: existing page callbacks and dimensions are retained.
+local orbitMenu = SXMedia.Orbit:Create({
+    Gui=gui, Root=root, Window=window, Floating=floating, Logo=logo, Minimize=minimize,
+    Names=tabNames, OnSelect=selectTab,
+    OnVisible=function(value) S.open=value; SXSession:SetVisible(value) end,
+    PlayWindow=function() playSound("window") end,
+})
+setOpen=function(value) orbitMenu:SetOpen(value) end
+orbitMenu:Open(false)
 SXSession:Bind(gui)
 SXMedia:Watch(localVisuals)
 SXSession:Finish()
