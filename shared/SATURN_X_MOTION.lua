@@ -1,8 +1,8 @@
--- SATURN X Motion 1.2.0 / BM
+-- SATURN X Motion 1.3.0 / BM
 -- Embedded UI-only extension. Fixed scroll slots prevent layout feedback.
 -- No remotes, gameplay changes, executable downloads, or replacement input handlers.
 local function InstallMotion(M)
-    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.2.0" then return M.Motion end
+    if M.Motion and M.Motion.Alive and M.Motion.Version=="1.3.0" then return M.Motion end
     if M.Motion and M.Motion.Alive then M.Motion:Destroy() end
     local RunService=game:GetService("RunService")
     local UIS=game:GetService("UserInputService")
@@ -11,8 +11,8 @@ local function InstallMotion(M)
     local env=(type(getgenv)=="function" and getgenv()) or _G
     local defaults={motionEnabled=true,scrollMotionEnabled=true,pressMotionEnabled=true}
     for key,value in pairs(defaults) do if type(M.Settings[key])~="boolean" then M.Settings[key]=value end end
-    local Motion={Version="1.2.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
-    M.Motion=Motion;M.Build="1.2.0-motion"
+    local Motion={Version="1.3.0",Alive=true,Roots={},Connections={},Pending={},Dirty={},Reduced=false,AnimationFrames=20,AnimationFPS=60,Renderers={}}
+    M.Motion=Motion;M.Build="1.3.0-motion"
     local function connect(signal,fn,list)
         local c=signal:Connect(fn);table.insert(list or Motion.Connections,c);return c
     end
@@ -114,7 +114,7 @@ local function InstallMotion(M)
         local function strokeFor(r)
             if r.stroke then return end
             r.stroke=own("UIStroke",{Name="SATURN_X_MotionGlow",ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
-                Color=Color3.fromRGB(217,229,244),Thickness=1,Transparency=1},r.object)
+                Color=Color3.fromRGB(228,228,228),Thickness=1,Transparency=1},r.object)
         end
         local function buttonFeedback(o)
             if not o:IsA("GuiButton") or o:GetAttribute("SATURN_X_NoMotion") then return end
@@ -395,9 +395,9 @@ local function InstallMotion(M)
     end
     local panel=own("CanvasGroup",{Name="SATURN_X_MotionSettings",Size=UDim2.fromOffset(400,310),GroupTransparency=0,
         Position=UDim2.fromScale(0.5,0.5),AnchorPoint=Vector2.new(0.5,0.5),Visible=false,
-        BackgroundColor3=Color3.fromRGB(13,16,24),BorderSizePixel=0,ZIndex=40},M.Gui)
+        BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,ZIndex=40},M.Gui)
     own("UICorner",{CornerRadius=UDim.new(0,16)},panel)
-    own("UIStroke",{Color=Color3.fromRGB(62,76,97),Thickness=1},panel)
+    own("UIStroke",{Color=Color3.fromRGB(75,75,75),Thickness=1},panel)
     local panelScale=own("UIScale",{Scale=1},panel)
     local panelSerial=0;local panelWanted=false
     local function showPanel(show)
@@ -412,14 +412,14 @@ local function InstallMotion(M)
         table.insert(Motion.Renderers,guarded);table.insert(M.Renderers,guarded)
     end
     local function label(text,x,y,w,h,size)
-        local o=own("TextLabel",{Text=text,TextColor3=Color3.fromRGB(226,234,245),TextSize=size or 13,
+        local o=own("TextLabel",{Text=text,TextColor3=Color3.fromRGB(233,233,233),TextSize=size or 13,
             Font=Enum.Font.Gotham,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,
             BackgroundTransparency=1,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),ZIndex=41},panel)
         M:BindText(o,"Text");return o
     end
     local function button(parent,text,x,y,w,h,callback)
-        local b=own("TextButton",{Text=text,TextColor3=Color3.fromRGB(226,234,245),TextSize=13,Font=Enum.Font.GothamMedium,
-            AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(25,31,43),BorderSizePixel=0,
+        local b=own("TextButton",{Text=text,TextColor3=Color3.fromRGB(233,233,233),TextSize=13,Font=Enum.Font.GothamMedium,
+            AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(31,31,31),BorderSizePixel=0,
             Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),ZIndex=42},parent)
         own("UICorner",{CornerRadius=UDim.new(0,9)},b);M:BindText(b,"Text")
         connect(b.Activated,function() M:Click();callback() end);return b
@@ -432,7 +432,7 @@ local function InstallMotion(M)
         local b=button(panel,"",292,y,86,34,function() M:Set(key,not M.Settings[key]) end)
         renderer(function()
             b.Text=M.Settings[key] and "เปิด" or "ปิด"
-            b.BackgroundColor3=M.Settings[key] and Color3.fromRGB(49,73,94) or Color3.fromRGB(25,31,43)
+            b.BackgroundColor3=M.Settings[key] and Color3.fromRGB(69,69,69) or Color3.fromRGB(31,31,31)
         end)
     end
     local state=label("",22,232,356,50,11)

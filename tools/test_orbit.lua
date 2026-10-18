@@ -110,7 +110,7 @@ local flushTimers=runDelayed
 runDelayed=function() flushTimers();tick(100) end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.6.0-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.7.0-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})
@@ -230,7 +230,7 @@ getcustomasset=function(_)registerCalls=registerCalls+1;return 'local://verified
 game.HttpGet=function()httpCalls=httpCalls+1;return 'not a PNG'end
 local invalid='unset';orbit:Asset('atlas',function(id)invalid=id end);flush()
 assert(invalid==nil and registerCalls==0 and httpCalls==1)
-game.HttpGet=function()httpCalls=httpCalls+1;return '\137PNG\r\n\26\n'..string.rep('\0',2411469-8)end
+game.HttpGet=function()httpCalls=httpCalls+1;return '\137PNG\r\n\26\n'..string.rep('\0',2664989-8)end
 local a,b;orbit:Asset('atlas',function(id)a=id end);orbit:Asset('atlas',function(id)b=id end);flush()
 assert(a=='local://verified-asset' and b==a and registerCalls==1 and httpCalls==2)
 local cached;orbit:Asset('atlas',function(id)cached=id end);assert(cached==a and httpCalls==2)
@@ -260,12 +260,16 @@ c2:Open(false);runDelayed()
 local portalArt=descendantsNamed(c2.Stage,'OrbitSprite10')
 assert(portalArt.Position.X.Scale==-1 and portalArt.Position.Y.Scale==-2)
 c2:SetOpen(false);assert(portalArt.Position.X.Scale==0 and portalArt.Position.Y.Scale==-2);runDelayed()
-pass('all 10 artwork cells and both portal states retain bounds across 5 decoded texture sizes')
+pass('all 11 artwork cells and both portal states retain bounds across 5 decoded texture sizes')
 local old=c2;local oldService=orbit;local oldStage=c2.Stage
 c2:Open(false);runDelayed();c2:Tap(4);c2:Tap(4)
+orbit.Assets.atlas='local://legacy-colored-atlas';orbit.AtlasRevision=nil
+local registeredBeforeUpgrade=registerCalls
 orbit.Version='1.0.0';orbit=install(M);flush()
+assert(registerCalls==registeredBeforeUpgrade+1 and orbit.AtlasRevision=='mono-v2')
 local upgraded=orbit.Controllers[root]
 assert(orbit~=oldService and not oldService.Alive and oldStage.Parent==nil)
+assert(upgraded.StartedAt==old.StartedAt)
 assert(upgraded and upgraded.State=='category' and upgraded.Selected==4 and window.Visible)
 old:SetOpen(false);runDelayed();assert(upgraded.State=='closed' and floating.Visible)
 old:SetOpen(true);runDelayed();assert(upgraded.State=='orbit' and not floating.Visible)
@@ -344,7 +348,46 @@ end
 M.Settings.language='en';M:Refresh();surface.AbsoluteSize=Vector2.new(1200,800)
 pass('small comet opens main-menu settings once, preserves eight categories, supports mobile taps and 20-pose feedback')
 
-upgraded:Tap(4);upgraded:Tap(4);tick(25)
+-- Sun timer uses wall elapsed time, independent of render pose timing or visibility.
+assert(upgraded.SunImage.Name=='OrbitSprite11' and upgraded.SunImage.Image==a)
+local fallbackSun=descendantsNamed(upgraded.Stage,'SunFallback')
+assert(fallbackSun and not fallbackSun.Visible)
+upgraded.StartedAt=clock-3661.02
+upgraded.ShowUsage=false;upgraded.SunButton.Activated:Fire()
+assert(upgraded.ShowUsage and upgraded.Selected==nil and upgraded.UsageLabel.Text=='01:01:01')
+clock=clock+2;RunService.Heartbeat:Fire(2)
+assert(upgraded.UsageLabel.Text=='01:01:03')
+for _,row in ipairs({{'th','เวลาใช้งานรอบนี้'},{'en','Session time'},{'zh','本次使用时间'}}) do
+    M.Settings.language=row[1];M:Refresh()
+    assert(descendantsNamed(upgraded.Stage,'CategoryTitle').Text==row[2])
+end
+M.Settings.language='en';M:Refresh()
+local cometAngle=upgraded.CometAngle;tick(1)
+assert(upgraded.CometAngle~=cometAngle and not upgraded.RevolvingComet.Active)
+cometAngle=upgraded.CometAngle;M.Settings.motionEnabled=false;tick(31)
+assert(upgraded.CometAngle==cometAngle and upgraded.UsageLabel.Text~='01:01:03')
+M.Settings.motionEnabled=true;UIS.WindowFocusReleased:Fire();tick(2)
+assert(upgraded.CometAngle==cometAngle)
+UIS.WindowFocused:Fire();GuiService.ReducedMotionEnabled=true;tick(2)
+assert(upgraded.CometAngle==cometAngle)
+GuiService.ReducedMotionEnabled=false;tick(2);assert(upgraded.CometAngle~=cometAngle)
+upgraded:SetOpen(false);runDelayed()
+cometAngle=upgraded.CometAngle;local beforeHidden=upgraded:UsageSeconds()
+clock=clock+60;RunService.Heartbeat:Fire(60)
+assert(upgraded:UsageSeconds()==beforeHidden+60 and upgraded.CometAngle==cometAngle)
+upgraded:Open(false);runDelayed();assert(upgraded.ShowUsage)
+assert(upgraded.LastUsageSecond==upgraded:UsageSeconds())
+upgraded.SunButton.Activated:Fire();assert(not upgraded.ShowUsage)
+upgraded.SunButton.Activated:Fire();upgraded:Tap(4);assert(not upgraded.ShowUsage and upgraded.Selected==4)
+for _,object in ipairs(upgraded.Stage:GetDescendants()) do
+    for _,key in ipairs({'BackgroundColor3','TextColor3','ImageColor3','Color'}) do
+        local color=object[key]
+        if color and color.R then assert(color.R==color.G and color.G==color.B) end
+    end
+end
+pass('AI Sun cell, timer localization and hidden-time continuity; grayscale orbiting comet obeys motion and focus preferences')
+
+upgraded:Tap(4);tick(25)
 local closed=0
 orbit:Close(root,function() closed=closed+1 end)
 orbit:Close(root,function() closed=closed+1 end)

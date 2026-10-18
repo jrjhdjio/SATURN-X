@@ -1,7 +1,33 @@
 # SATURN X Orbit / BM
 
 เมนูวงโคจรสำหรับ SATURN X ทั้ง 10 ตัว ใช้ตัวโหลด URL เดิมได้
-เวอร์ชันส่วนติดต่อ: `1.6.0-orbit` • โมดูล Orbit: `1.4.0` • Motion: `1.2.0`
+เวอร์ชันส่วนติดต่อ: `1.7.0-orbit` • โมดูล Orbit: `1.5.0` • Motion: `1.3.0`
+
+## แพตช์ 1.7.0 — ดวงอาทิตย์ AI และโทนขาวดำ
+
+ตรงกลางเป็นภาพดวงอาทิตย์ AI พร้อมผิวพลาสมาและเปลวสุริยะสีเงิน
+แตะดวงอาทิตย์เพื่อดูเวลาใช้งานรอบนี้เป็นชั่วโมง:นาที:วินาที และแตะซ้ำเพื่อกลับ
+เริ่มนับเมื่อเปิดสคริปต์แต่ละตัว นับต่อขณะย่อหรือเปิดหน้าหมวด และเริ่มใหม่เมื่อรันสคริปต์นั้นใหม่
+เลือกดาวจะกลับไปแสดงรายละเอียดหมวดตามเดิม
+
+เพิ่มดาวหางเล็กหมุนรอบดวงอาทิตย์ประมาณ 12 วินาทีต่อรอบที่เฟรมเรตปกติ
+หยุดเมื่อย่อเมนู สลับหน้าหมวด เสียโฟกัส ปิดเอฟเฟกต์ หรือเปิด Reduced Motion
+ปุ่มดาวหางซ้ายบนยังเป็นปุ่มตั้งค่า SX • FX และคงพื้นที่แตะเดิม
+ภาพดาวทั้ง 8 ดวง หลุมดำ/หลุมขาว ดวงอาทิตย์ แผงเมนู และหน้าตั้งค่าใช้โทนขาวดำ
+แอนิเมชันวนของดาวหางแยกจากแอนิเมชัน 20 ท่า เพื่อไม่ขวางการเปิด–ปิดเมนู
+
+ภาพใหม่สร้างด้วย built-in imagegen แบบแก้ไข atlas เดิม; PNG RGBA 1536 × 1024
+ไฟล์ `assets/SATURN_X_orbit_atlas_mono_v2.png` ขนาด 2,664,989 bytes
+ตาราง 4 × 3: ช่อง 1–8 ดาว, 9 หลุมดำ, 10 หลุมขาว, 11 ดวงอาทิตย์, 12 ว่าง
+คำสั่งสร้างภาพ: neutral monochrome astronomy UI atlas, preserve original 4×3 sprite layout,
+transparent background, add a realistic white plasma Sun with dark filaments/sunspots and silver corona
+in row 3 column 3; no text, no labels, no colored tint.
+เปลี่ยนชื่อไฟล์และตรวจ revision แคชเพื่อไม่ใช้ภาพสีเก่าหลังอัปเกรด
+
+ตรวจแบบจำลอง Orbit 26 กลุ่มและ Motion 16 กลุ่ม รวมเวลาระหว่างย่อเมนู การเปลี่ยนภาษา
+การหยุดดาวหางตามตั้งค่า การเปลี่ยนแคช และครบ 20 ท่าที่เฟรมเรต 10/30/60/144 FPS
+ยังไม่ได้ทดสอบภาพและสัมผัสใน Roblox/Delta จริง
+เข้าเกมใหม่แล้วรันตัวโหลด URL เดิมเพื่อให้ทุกหน้าตั้งค่าเปลี่ยนเป็นธีมใหม่ครบทั้งหมด
 
 ## แพตช์ 1.6.0 — ดาวหางเป็นปุ่มตั้งค่าเมนูหลัก
 
@@ -104,7 +130,7 @@
 - เมื่อเปิดสคริปต์ จะเห็นโลโก้ SATURN X เดิมอยู่ตรงกลาง วงโคจร 8 วง และดาว 8 ดวง
 - แตะดาวครั้งแรกเพื่ออ่านชื่อหมวดและรายละเอียด การโคจรจะพักระหว่างเลือก
 - แตะดาวดวงเดิมอีกครั้งเพื่อเปิดหน้าหมวดเดิม
-- แตะโลโก้ตรงกลางเพื่อล้างการเลือก
+- แตะดวงอาทิตย์ตรงกลางเพื่อดูเวลาใช้งานรอบนี้และล้างการเลือก; แตะซ้ำเพื่อกลับ
 - ภายในหน้าหมวด แตะโลโก้ที่มุมซ้ายบนเพื่อกลับสู่วงโคจร
 - แตะหลุมดำเพื่อย่อเมนู แล้วแตะโลโก้ลอยเพื่อเปิดกลับพร้อมหลุมขาวและวงโคจร
 - ปุ่ม × ในหน้าหมวดยังคงปิดสคริปต์ทั้งหมด ส่วน Right Shift ยังคงเปิดหรือย่อเมนู
@@ -127,16 +153,16 @@
 
 ## ภาพและเสียง
 
-- `assets/SATURN_X_orbit_atlas_v1.png`: ภาพ AI ที่สร้างด้วย built-in imagegen; RGBA 1536 × 1024, 2,411,469 bytes
-- Atlas 4 คอลัมน์ × 3 แถว: ดาว 8 ดวงในสองแถวแรก; หลุมดำกับหลุมขาวในสองช่องแรกของแถวสุดท้าย
+- `assets/SATURN_X_orbit_atlas_mono_v2.png`: ภาพ AI ขาวดำที่แก้ไขด้วย built-in imagegen; RGBA 1536 × 1024, 2,664,989 bytes
+- Atlas 4 คอลัมน์ × 3 แถว: ดาว 8 ดวงในสองแถวแรก; หลุมดำ หลุมขาว และดวงอาทิตย์ในสามช่องแรกของแถวสุดท้าย
 - ใช้กรอบ ClipsDescendants และตำแหน่งตามสัดส่วน 4 × 3 แสดงแต่ละช่องจากภาพเดียว ภาพต้นฉบับไม่ได้ตัดหรือปรับแต่งหลังสร้าง
-- เก็บโลโก้เดิม `assets/SATURN_X_logo.png` ไว้เป็นภาพศูนย์กลาง
+- ภาพศูนย์กลางเป็นดวงอาทิตย์ช่องที่ 11; โลโก้เดิมยังใช้กับปุ่มลอยและหัวหน้าหมวด
 - `assets/SATURN_X_orbit_wave_v1.wav`: เสียง chime สังเคราะห์ใหม่ 0.8 วินาที, PCM mono 44.1 kHz, 16-bit; 70,604 bytes
 - ต้องใช้ runtime ที่รองรับ writefile และ getcustomasset หรือ getsynasset สำหรับภาพและเสียงในเครื่อง
-- ตรวจขนาดและ signature ของไฟล์ก่อนลงทะเบียน หากยังโหลดภาพไม่ได้ จะใช้ดาวสีพร้อมหมายเลขให้เลือกหมวดต่อได้
+- ตรวจขนาดและ signature ของไฟล์ก่อนลงทะเบียน หากยังโหลดภาพไม่ได้ จะใช้ดาวสำรองขาวดำพร้อมหมายเลขให้เลือกหมวดต่อได้
 - ไม่ได้ยืนยันการเล่นเสียงหรือการแสดงภาพใน Delta จริง
 
-### Imagegen prompt
+### Imagegen prompt เดิม (atlas v1; คำสั่งรุ่นขาวดำอยู่ในแพตช์ 1.7.0)
 
 ```text
 Use case: stylized-concept. Asset type: ONE production sprite-atlas texture for a premium circular space-themed game menu called SATURN X. Create a single transparent RGBA image, landscape, ideally 1536 by 1024, precisely arranged as 4 equal columns and 3 equal rows. Absolutely NO grid lines, NO labels, NO text, NO background, NO checkerboard. Every icon is isolated with generous fully transparent padding, centered within its own cell, occupying at most 65% of cell width and height, with no touching between cells. Row 1 from left to right: a textured silver cratered moon planet; a warm copper rocky planet; a pale icy cyan planet; a deep emerald planet with subtle cloud bands. Row 2 from left to right: an amber gas giant with bands; a violet crystalline-looking planet; a deep blue ocean planet; a small pearl-silver Saturn-like planet with elegant diagonal rings. Row 3: first cell a beautiful BLACK HOLE icon, round black event horizon surrounded by a slim warm silver-white accretion ring and subtle light bending; second cell a WHITE HOLE icon, brilliant pearl-white luminous round core with cool pale-blue concentric accretion rings; third and fourth cells entirely empty and transparent. Consistent luxurious semi-realistic 3D space illustration, same soft upper-left key light, fine material detail, crisp silhouette. Restrained clean glows confined to each cell. Planets must remain legible as small mobile UI buttons. The circles and portals are seen mostly front-on. This is a functional texture atlas, not a composed space scene. Keep every icon in the specified separate grid cell. True alpha transparency everywhere outside the icons.

@@ -1,7 +1,7 @@
--- SATURN X Orbit 1.4.0 / BM
+-- SATURN X Orbit 1.5.0 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.4.0" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.5.0" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -15,10 +15,13 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.4.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
+    local Orbit={Version="1.5.0",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={},Tracks={},
         AnimationFrames=20,AnimationFPS=60}
+    -- Old services may still hold the colored atlas under the same cache key.
+    if not previous or previous.AtlasRevision~="mono-v2" then Orbit.Assets.atlas=nil end
+    Orbit.AtlasRevision="mono-v2"
     local frameStep=1/Orbit.AnimationFPS
-    M.Orbit=Orbit;M.Build="1.6.0-orbit"
+    M.Orbit=Orbit;M.Build="1.7.0-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -106,7 +109,9 @@ local function InstallOrbit(M)
     local strings={
         choose={th="แตะดาวเพื่อเลือกหมวด",en="Tap a planet to explore",zh="轻点行星查看分类"},
         again={th="แตะดาวเดิมอีกครั้งเพื่อเปิด",en="Tap this planet again to open",zh="再次轻点此行星打开"},
-        back={th="แตะโลโก้เพื่อล้างการเลือก",en="Tap the logo to clear selection",zh="轻点标志取消选择"},
+        usage={th="เวลาใช้งานรอบนี้",en="Session time",zh="本次使用时间"},
+        sunHint={th="แตะดวงอาทิตย์เพื่อดูเวลาใช้งาน",en="Tap the Sun for session time",zh="轻点太阳查看使用时长"},
+        hideTime={th="แตะดวงอาทิตย์อีกครั้งเพื่อกลับ",en="Tap the Sun again to return",zh="再次轻点太阳返回"},
         collapse={th="ย่อเมนู",en="Collapse",zh="收起"},
         menuSettings={th="ตั้งค่าเมนู",en="Menu settings",zh="菜单设置"},
         ready={th="8 หมวด • SATURN X",en="8 categories • SATURN X",zh="8 个分类 • SATURN X"},
@@ -156,13 +161,13 @@ local function InstallOrbit(M)
         o.Parent=parent;return o
     end
     local function round(o) own("UICorner",{CornerRadius=UDim.new(1,0)},o) end
-    local silver=Color3.fromRGB(219,229,244)
-    local muted=Color3.fromRGB(156,172,195)
-    local colors={Color3.fromRGB(197,211,229),Color3.fromRGB(220,153,105),Color3.fromRGB(130,215,235),
-        Color3.fromRGB(106,196,156),Color3.fromRGB(230,183,101),Color3.fromRGB(179,149,227),
-        Color3.fromRGB(105,158,222),Color3.fromRGB(224,220,201)}
+    local silver=Color3.fromRGB(228,228,228)
+    local muted=Color3.fromRGB(170,170,170)
+    local colors={Color3.fromRGB(209,209,209),Color3.fromRGB(164,164,164),Color3.fromRGB(198,198,198),
+        Color3.fromRGB(174,174,174),Color3.fromRGB(187,187,187),Color3.fromRGB(161,161,161),
+        Color3.fromRGB(151,151,151),Color3.fromRGB(219,219,219)}
     local specs={
-        atlas={remote="SATURN_X_orbit_atlas_v1.png",size=2411469,kind="png"},
+        atlas={remote="SATURN_X_orbit_atlas_mono_v2.png",size=2664989,kind="png"},
         wave={remote="SATURN_X_orbit_wave_v1.wav",size=70604,kind="wav"},
     }
     local function valid(data,spec)
@@ -201,7 +206,8 @@ local function InstallOrbit(M)
     function Orbit:Create(options)
         assert(self.Alive and #options.Names==8,"Orbit needs eight existing categories")
         if self.Controllers[options.Gui] then return self.Controllers[options.Gui] end
-        local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},FrameAnimations={},Delays={},Completions={},
+        options.StartedAt=options.StartedAt or os.clock()
+        local C={StartedAt=options.StartedAt,ShowUsage=false,CometAngle=math.pi/4,Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},FrameAnimations={},Delays={},Completions={},
             Options=options,Planets={},Rings={},Sprites={},Angle=0,Hover={},Pointers={},FeedbackScales={}}
         self.Controllers[options.Gui]=C
         -- The orbit is the category picker. Show only the chosen page inside
@@ -295,11 +301,11 @@ local function InstallOrbit(M)
         local disk=own("CanvasGroup",{Name="OrbitalMenu",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
             Position=UDim2.fromScale(.5,.5),Size=UDim2.fromScale(1,1),GroupTransparency=0,ZIndex=20},stage)
         local diskScale=own("UIScale",{Scale=1},disk)
-        local backdrop=own("Frame",{BackgroundColor3=Color3.fromRGB(8,12,21),BackgroundTransparency=.08,
+        local backdrop=own("Frame",{BackgroundColor3=Color3.fromRGB(12,12,12),BackgroundTransparency=.08,
             Position=UDim2.fromOffset(10,10),Size=UDim2.fromOffset(580,580),BorderSizePixel=0,ZIndex=1},disk)
         round(backdrop)
-        own("UIStroke",{Color=Color3.fromRGB(77,95,121),Transparency=.5,Thickness=1},backdrop)
-        own("UIGradient",{Rotation=60,Color=ColorSequence.new(Color3.fromRGB(25,37,57),Color3.fromRGB(4,6,12))},backdrop)
+        own("UIStroke",{Color=Color3.fromRGB(93,93,93),Transparency=.5,Thickness=1},backdrop)
+        own("UIGradient",{Rotation=60,Color=ColorSequence.new(Color3.fromRGB(36,36,36),Color3.fromRGB(6,6,6))},backdrop)
         for i=1,28 do
             local a=i*2.399963;local r=110+(i*37%169)
             local dot=own("Frame",{BackgroundColor3=silver,BackgroundTransparency=.60+(i%3)*.1,BorderSizePixel=0,
@@ -325,16 +331,25 @@ local function InstallOrbit(M)
                 ScaleType=Enum.ScaleType.Stretch,ZIndex=7},clip)
             table.insert(C.Sprites,icon);return icon,clip
         end
-        local core=own("TextButton",{Name="CenterLogo",Text="",AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(13,19,30),
+        local core=own("TextButton",{Name="CenterLogo",Text="",AutoButtonColor=false,BackgroundColor3=Color3.fromRGB(19,19,19),
             BackgroundTransparency=.08,BorderSizePixel=0,Position=UDim2.fromOffset(184,184),Size=UDim2.fromOffset(232,232),ZIndex=5},disk)
         round(core);own("UIStroke",{Color=silver,Transparency=.72,Thickness=1},core)
-        local centerLogo=own("ImageLabel",{Name="OriginalSaturnLogo",Image="",BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
-            AnchorPoint=Vector2.new(.5,0),Position=UDim2.fromOffset(116,4),Size=UDim2.fromOffset(132,74),ZIndex=6},core)
-        local logoFallback=text(core,"LogoFallback",44,10,144,65,30);logoFallback.Text="SATURN X"
-        local heading=text(core,"CategoryTitle",10,80,212,44,22)
-        local description=text(core,"CategoryDetail",12,126,208,48,17,muted)
-        local hint=text(core,"Instructions",12,178,208,42,18)
-        local status=text(disk,"AssetStatus",117,554,366,24,13,muted)
+        local sunImage,sunClip=sprite(core,11,208)
+        sunClip.Position=UDim2.fromOffset(116,94)
+        local sunFallback=text(core,"SunFallback",58,36,116,116,86);sunFallback.Text="☀"
+        local heading=text(core,"CategoryTitle",10,155,212,28,19)
+        local description=text(core,"CategoryDetail",16,184,200,38,14,muted)
+        local hint=text(disk,"Instructions",117,514,366,36,16)
+        local sunHint=text(disk,"SunHint",117,544,366,20,12,muted)
+        heading.ZIndex=8;description.ZIndex=8
+        C.SunButton=core;C.SunImage=sunImage;C.UsageLabel=description
+        function C:UsageSeconds() return math.max(0,math.floor(os.clock()-self.StartedAt)) end
+        function C:RefreshUsage()
+            local seconds=self:UsageSeconds()
+            self.LastUsageSecond=seconds
+            description.Text=string.format("%02d:%02d:%02d",math.floor(seconds/3600),math.floor(seconds/60)%60,seconds%60)
+        end
+        local status=text(disk,"AssetStatus",117,572,366,20,11,muted)
         local badge=text(disk,"Brand",182,32,236,24,15,muted);badge.Text="SATURN X  /  ORBIT"
         for i=1,8 do
             local radius=160+(i-1)*10
@@ -349,7 +364,7 @@ local function InstallOrbit(M)
             local fallback=own("Frame",{Name="FallbackPlanet",BackgroundColor3=colors[i],BackgroundTransparency=.2,
                 AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(49,49),BorderSizePixel=0,ZIndex=6},b)
             round(fallback)
-            own("UIGradient",{Rotation=45,Color=ColorSequence.new(Color3.fromRGB(255,255,255),Color3.fromRGB(35,43,60))},fallback)
+            own("UIGradient",{Rotation=45,Color=ColorSequence.new(Color3.fromRGB(255,255,255),Color3.fromRGB(43,43,43))},fallback)
             local art=sprite(b,i,104)
             local number=text(b,"CategoryNumber",24,64,36,20,15);number.Text=string.format("%02d",i)
             local outline=own("Frame",{Name="SelectedRing",BackgroundTransparency=1,AnchorPoint=Vector2.new(.5,.5),
@@ -376,24 +391,36 @@ local function InstallOrbit(M)
         -- Small artwork, with the same 48px minimum phone target as the planets.
         local cometButton=own("TextButton",{Name="CometMenuSettings",Text="",AutoButtonColor=false,
             BackgroundTransparency=1,Position=UDim2.fromOffset(10,10),Size=UDim2.fromOffset(84,84),ZIndex=11},disk)
-        local cometArt=own("Frame",{Name="SmallCometIcon",BackgroundTransparency=1,
-            Position=UDim2.fromOffset(42,36),AnchorPoint=Vector2.new(.5,.5),
-            Size=UDim2.fromOffset(34,12),Rotation=26,Active=false,Selectable=false,ZIndex=12},cometButton)
-        for i=1,6 do
-            local tail=own("Frame",{Name="CometTail"..i,BackgroundColor3=Color3.fromRGB(170,211,246),
-                BackgroundTransparency=.20+(6-i)*.11,BorderSizePixel=0,Active=false,Selectable=false,
-                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(3+i*4,6),
-                Size=UDim2.fromOffset(6,1+i*.25),ZIndex=12},cometArt)
-            round(tail)
+        local function smallComet(parent,name)
+            local cometArt=own("Frame",{Name=name,BackgroundTransparency=1,
+                Position=UDim2.fromOffset(42,36),AnchorPoint=Vector2.new(.5,.5),
+                Size=UDim2.fromOffset(34,12),Rotation=26,Active=false,Selectable=false,ZIndex=12},parent)
+            for i=1,6 do
+                local tail=own("Frame",{Name="CometTail"..i,BackgroundColor3=Color3.fromRGB(205,205,205),
+                    BackgroundTransparency=.20+(6-i)*.11,BorderSizePixel=0,Active=false,Selectable=false,
+                    AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(3+i*4,6),
+                    Size=UDim2.fromOffset(6,1+i*.25),ZIndex=12},cometArt)
+                round(tail)
+            end
+            local glow=own("Frame",{Name="CometGlow",BackgroundColor3=Color3.fromRGB(206,206,206),
+                BackgroundTransparency=.72,BorderSizePixel=0,Active=false,Selectable=false,
+                AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(8,8),ZIndex=12},cometArt)
+            round(glow)
+            local cometHead=own("Frame",{Name="CometHead",BackgroundColor3=silver,BackgroundTransparency=.05,
+                BorderSizePixel=0,Active=false,Selectable=false,AnchorPoint=Vector2.new(.5,.5),
+                Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(4,4),ZIndex=12},cometArt)
+            round(cometHead)
+            return cometArt
         end
-        local glow=own("Frame",{Name="CometGlow",BackgroundColor3=Color3.fromRGB(168,212,255),
-            BackgroundTransparency=.72,BorderSizePixel=0,Active=false,Selectable=false,
-            AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(8,8),ZIndex=12},cometArt)
-        round(glow)
-        local cometHead=own("Frame",{Name="CometHead",BackgroundColor3=silver,BackgroundTransparency=.05,
-            BorderSizePixel=0,Active=false,Selectable=false,AnchorPoint=Vector2.new(.5,.5),
-            Position=UDim2.fromOffset(30,6),Size=UDim2.fromOffset(4,4),ZIndex=12},cometArt)
-        round(cometHead)
+        local cometArt=smallComet(cometButton,"SmallCometIcon")
+        local revolvingComet=smallComet(disk,"RevolvingComet")
+        -- Decorative movement has its own clock so menu transitions can finish.
+        -- Its artwork ignores input; the fixed top-left comet remains easy to tap.
+        C.RevolvingComet=revolvingComet
+        function C:PositionComet()
+            revolvingComet.Position=UDim2.fromOffset(300+math.cos(self.CometAngle)*128,278+math.sin(self.CometAngle)*128)
+            revolvingComet.Rotation=math.deg(self.CometAngle)+90
+        end
         local cometLabel=text(cometButton,"MenuSettingsLabel",-10,66,104,22,14)
         cometLabel.ZIndex=12
         C.CometButton=cometButton;C.CometIcon=cometArt
@@ -438,10 +465,13 @@ local function InstallOrbit(M)
         function C:Refresh()
             if not self.Alive then return end
             local selected=self.Selected
-            heading.Text=selected and M:T(options.Names[selected]) or "SATURN X"
-            description.Text=selected and tr(details[options.Names[selected]] or strings.default) or tr(strings.ready)
-            hint.Text=tr(selected and strings.again or strings.choose)
-            core:SetAttribute("ActionHint",tr(strings.back))
+            heading.Text=self.ShowUsage and tr(strings.usage) or (selected and M:T(options.Names[selected]) or "SATURN X")
+            description.TextSize=self.ShowUsage and 25 or 14
+            if self.ShowUsage then self:RefreshUsage()
+            else description.Text=selected and tr(details[options.Names[selected]] or strings.default) or tr(strings.ready) end
+            hint.Text=tr(self.ShowUsage and strings.hideTime or (selected and strings.again or strings.choose))
+            sunHint.Text=self.ShowUsage and "HH : MM : SS" or tr(strings.sunHint)
+            core:SetAttribute("ActionHint",tr(strings.sunHint))
             status.Text=self.AtlasFailed and tr(strings.fallback) or ""
             collapseLabel.Text=tr(strings.collapse)
             cometLabel.Text=tr(strings.menuSettings)
@@ -477,6 +507,7 @@ local function InstallOrbit(M)
         end
         function C:Tap(index)
             if not self.Alive or self.State~="orbit" or not self.Planets[index] then return end
+            self.ShowUsage=false
             wave(index)
             if self.Selected~=index then self.Selected=index;self:Refresh();return end
             self:Cancel();self.State="category";stage.Visible=false;portal.Visible=false
@@ -544,7 +575,9 @@ local function InstallOrbit(M)
             afterAnimations(serial,callback)
         end
         connect(core.Activated,function()
-            if C.State=="orbit" and C.Selected then C.Selected=nil;C:Refresh();M:Click() end
+            if C.State=="orbit" then
+                C.Selected=nil;C.ShowUsage=not C.ShowUsage;C:Refresh();M:Click()
+            end
         end)
         feedback(core,core);feedback(black,black);feedback(returnButton,options.Logo);feedback(cometButton,cometArt)
         connect(UIS.InputEnded,function(input)
@@ -560,7 +593,12 @@ local function InstallOrbit(M)
         connect(UIS.WindowFocused,function() C.Focused=true end)
         local elapsed=0
         connect(RunService.Heartbeat,function(dt)
-            if not C.Alive or C.State~="orbit" or C.Selected or C.Focused==false or not moving() or next(C.Hover) or next(C.Pointers) then return end
+            if not C.Alive or C.State~="orbit" then return end
+            if C.ShowUsage and C.LastUsageSecond~=C:UsageSeconds() then C:RefreshUsage() end
+            if C.Focused==false or not moving() then return end
+            C.CometAngle=(C.CometAngle+math.min(math.max(dt,0),.05)*math.pi/6)%(math.pi*2)
+            C:PositionComet()
+            if C.Selected or next(C.Hover) or next(C.Pointers) then return end
             elapsed=elapsed+dt;if elapsed<1/30 then return end
             C.Angle=(C.Angle+math.min(elapsed,.1)*.014)%(math.pi*2);elapsed=0;C:PositionPlanets()
         end)
@@ -577,9 +615,6 @@ local function InstallOrbit(M)
             if content and content.Parent then content.Position=savedPosition;content.Size=savedSize end
         end
         connect(options.Gui.Destroying,function() C:Destroy() end)
-        M:Asset("logo",function(id)
-            if C.Alive and id then centerLogo.Image=id;logoFallback.Visible=false end
-        end)
         self:Asset("atlas",function(id)
             if not C.Alive then return end
             C.AtlasFailed=not id
@@ -589,11 +624,11 @@ local function InstallOrbit(M)
                 -- false for local runtime URIs even while the image is visible.
                 -- Never draw placeholders underneath successfully assigned artwork.
                 for _,p in ipairs(C.Planets) do p.Fallback.Visible=false end
-                blackFallback.Visible=false;miniFallback.Visible=false;portalFallback.Visible=false
+                blackFallback.Visible=false;miniFallback.Visible=false;portalFallback.Visible=false;sunFallback.Visible=false
             end
             C:Refresh()
         end)
-        C:PositionPlanets();C:Refresh();layout()
+        C:PositionPlanets();C:PositionComet();C:Refresh();layout()
         return C
     end
     local baseRefresh=M.Refresh
