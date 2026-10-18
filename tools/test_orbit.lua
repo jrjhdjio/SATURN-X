@@ -99,7 +99,7 @@ local install=assert(loadfile(path))();local orbit=install(M)
 local function tick(n)for _=1,n or 35 do clock=clock+1/30;RunService.Heartbeat:Fire(1/30);flush()end end
 local function descendantsNamed(root,name)for _,o in ipairs(root:GetDescendants())do if o.Name==name then return o end end end
 local passed=0;local function pass(s)passed=passed+1;print('PASS '..s)end
-assert(install(M)==orbit);assert(M.Build=='1.2.1-orbit');pass('idempotent install on a live media service')
+assert(install(M)==orbit);assert(M.Build=='1.2.2-orbit');pass('idempotent install on a live media service')
 local root=obj('ScreenGui',host)
 local surface=obj('Frame',root,{AbsoluteSize=Vector2.new(360,740)})
 local window=obj('CanvasGroup',surface,{Size=UDim2.fromOffset(760,510)})

@@ -28,7 +28,7 @@ if stale then stale:Destroy() end
 
 -- BEGIN SATURN_X_SHARED_MEDIA 1.0.0
 local SXMedia = (function()
--- SATURN X media / BM / 1.2.1-orbit
+-- SATURN X media / BM / 1.2.2-orbit
 -- This module is bundled into every entry script; only image/audio data is downloaded.
 -- Local music needs writefile and getcustomasset/getsynasset. No telemetry.
 local env = (type(getgenv) == "function" and getgenv()) or _G
@@ -458,10 +458,10 @@ end
 return InstallMotion
 end)()
 local InstallOrbit = (function()
--- SATURN X Orbit 1.0.1 / BM
+-- SATURN X Orbit 1.0.2 / BM
 -- UI-only extension. The original eight pages and their handlers stay in place.
 local function InstallOrbit(M)
-    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.0.1" then return M.Orbit end
+    if M.Orbit and M.Orbit.Alive and M.Orbit.Version=="1.0.2" then return M.Orbit end
     local previous=M.Orbit
     local upgrades={}
     if previous and previous.Alive then
@@ -475,8 +475,8 @@ local function InstallOrbit(M)
     local RunService=game:GetService("RunService")
     local TweenService=game:GetService("TweenService")
     local UIS=game:GetService("UserInputService")
-    local Orbit={Version="1.0.1",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
-    M.Orbit=Orbit;M.Build="1.2.1-orbit"
+    local Orbit={Version="1.0.2",Alive=true,Controllers={},Assets=previous and previous.Assets or {},Jobs={}}
+    M.Orbit=Orbit;M.Build="1.2.2-orbit"
     local function moving()
         return M.Settings.motionEnabled~=false and not (M.Motion and M.Motion.Reduced)
     end
@@ -580,6 +580,18 @@ local function InstallOrbit(M)
         local C={Alive=true,State="closed",Selected=nil,Serial=0,Connections={},Tweens={},
             Options=options,Planets={},Rings={},Sprites={},Angle=0,Hover={},Pointers={}}
         self.Controllers[options.Gui]=C
+        -- The orbit is the category picker. Show only the chosen page inside
+        -- the original window, using the space previously occupied by its tabs.
+        local sidebar=options.Window:FindFirstChild("Categories")
+        local content=options.Window:FindFirstChild("Content")
+        local savedSidebar=sidebar and sidebar.Visible
+        local savedPosition=content and content.Position
+        local savedSize=content and content.Size
+        if sidebar then sidebar.Visible=false end
+        if content then
+            content.Position=UDim2.new(0,14,savedPosition.Y.Scale,savedPosition.Y.Offset)
+            content.Size=UDim2.new(1,-28,savedSize.Y.Scale,savedSize.Y.Offset)
+        end
         local function connect(signal,fn)
             local c=signal:Connect(fn);table.insert(C.Connections,c);return c
         end
@@ -752,8 +764,9 @@ local function InstallOrbit(M)
             wave(index)
             if self.Selected~=index then self.Selected=index;self:Refresh();return end
             self:Cancel();self.State="category";stage.Visible=false;portal.Visible=false
+            options.OnSelect(index)
             options.Window.Visible=true;options.Window.GroupTransparency=0;options.Floating.Visible=false
-            options.OnSelect(index);options.OnVisible(true);options.PlayWindow()
+            options.OnVisible(true);options.PlayWindow()
         end
         function C:Open(sound)
             if not self.Alive then return end
@@ -816,6 +829,8 @@ local function InstallOrbit(M)
             for _,c in ipairs(self.Connections) do c:Disconnect() end;self.Connections={}
             stage:Destroy();returnButton:Destroy();miniClip:Destroy();miniFallback:Destroy()
             if options.Minimize.Parent then options.Minimize.Text=minText end
+            if sidebar and sidebar.Parent then sidebar.Visible=savedSidebar end
+            if content and content.Parent then content.Position=savedPosition;content.Size=savedSize end
         end
         connect(options.Gui.Destroying,function() C:Destroy() end)
         M:Asset("logo",function(id)
@@ -2069,7 +2084,6 @@ M:SyncAudio();M:Refresh();scalePanels()
 InstallMotion(M)
 InstallOrbit(M)
 return M
-
 
 end)()
 -- END SATURN_X_SHARED_MEDIA
