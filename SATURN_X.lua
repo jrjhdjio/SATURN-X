@@ -1,4 +1,4 @@
--- SATURN X / 100 Days At Sea / v1.0.2-beta / Created by BM
+-- SATURN X / 100 Days At Sea / v1.0.3-beta / Created by BM
 -- Research: https://www.roblox.com/games/70411440483149/100-Days-At-Sea
 -- This build has NOT been tested inside the live experience.
 -- Item names/folders are conservative heuristics, NOT verified game internals.
@@ -8,7 +8,7 @@
 -- Standard Studio: use a LocalScript and set your own permitted asset IDs below.
 
 local CONFIG = {
-    Creator = "BM", Version = "1.0.2-beta",
+    Creator = "BM", Version = "1.0.3-beta",
     PlaceId = 70411440483149, UniverseId = 9167377564,
     LogoAssetId = "", WindowSoundId = "", ClickSoundId = "",
     ScanRadius = 180, PullRadius = 60, PullLimit = 8, MaxMarkers = 24,
@@ -1933,6 +1933,11 @@ local translations = {
     ["ดึงชิ้นที่เลือก 4 วินาที"]={en="Pull selected item for 4 seconds",zh="拉取所选物品 4 秒"},
     ["หยุดดึงของ"]={en="Stop item pulling",zh="停止拉取物品"},
     ["ล้างคำค้น / สแกนใหม่"]={en="Clear filter / Scan again",zh="清空筛选 / 重新扫描"},
+    ["ตรวจของใกล้ตัว / คัดลอกรายงาน"]={en="Inspect nearby items / Copy report",zh="检查附近物品 / 复制报告"},
+    ["ถือฉมวกและยืนใกล้ของ แล้วกดตรวจ จากนั้นวางข้อความในแชต\nปุ่มตรวจอ่านข้อมูลอย่างเดียว ไม่ได้ยิงฉมวกหรือเก็บของ"]={en="Equip the harpoon near an item, inspect, then paste the report in chat\nInspection only reads data; it does not fire or collect items",zh="手持鱼叉靠近物品，点击检查后将报告粘贴到聊天中\n检查仅读取数据，不会发射鱼叉或拾取物品"},
+    ["กำลังสแกนอยู่ รอสักครู่แล้วกดตรวจอีกครั้ง"]={en="A scan is running; try inspecting again shortly",zh="正在扫描，请稍后再次检查"},
+    ["คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย"]={en="Report copied; return to chat and paste it",zh="报告已复制，请返回聊天并粘贴"},
+    ["คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก"]={en="Automatic copy unavailable; long-press the report to select all and copy",zh="无法自动复制，请长按报告以全选并复制"},
 }
 -- END_LOCALES
 
@@ -2853,7 +2858,8 @@ local function indexItems()
     end
     itemIndexReady = true
 end
-local resultBox, scanInfo, pullInfo, diagnosticBox
+local resultBox, scanInfo, pullInfo, diagnosticBox, quickReportBox
+local buildReport, copyItemReport
 local function filteredItems()
     local _, r = character() if not r then return {} end
     local output = {}
@@ -2967,6 +2973,87 @@ local function updatePull()
     if os.clock() < S.pullUntil then pullOnce(S.pullSelection, true)
     elseif S.pull then pullOnce(nil, true) end
 end
+local function interactionReport()
+    local lines = {"INTERACTIONS (read only; no activation requests)"}
+    local function clean(value)
+        return tostring(value):gsub("[\r\n]", " "):sub(1, 180)
+    end
+    local function describe(object, heading)
+        if not object or not object.Parent then return end
+        lines[#lines + 1] = heading .. ": " .. clean(object:GetFullName())
+        local ok, err = pcall(function()
+            local node = object
+            for depth = 1, 3 do
+                if not node or node == Workspace or node == player.Character then break end
+                local attrs = {}
+                for key, value in pairs(node:GetAttributes()) do
+                    local k = string.lower(key)
+                    if k:find("item", 1, true) or k:find("resource", 1, true) or k:find("collect", 1, true)
+                        or k:find("pickup", 1, true) or k == "id" or k == "type" or k == "quantity" then
+                        attrs[#attrs + 1] = clean(key) .. "=" .. clean(value)
+                    end
+                end
+                table.sort(attrs)
+                if #attrs > 0 then lines[#lines + 1] = "  attrs " .. clean(node.Name) .. ": " .. table.concat(attrs, ", "):sub(1, 400) end
+                node = node.Parent
+            end
+            local prompts, clicks, details = 0, 0, 0
+            local descendants = object:GetDescendants()
+            for _, child in ipairs(descendants) do
+                if child:IsA("ProximityPrompt") then
+                    prompts = prompts + 1
+                    if prompts <= 4 then
+                        lines[#lines + 1] = "  PROMPT " .. clean(child:GetFullName()) .. " | action=" .. clean(child.ActionText)
+                            .. " | object=" .. clean(child.ObjectText) .. " | enabled=" .. tostring(child.Enabled)
+                            .. " | range=" .. tostring(child.MaxActivationDistance) .. " | hold=" .. tostring(child.HoldDuration)
+                    end
+                elseif child:IsA("ClickDetector") then
+                    clicks = clicks + 1
+                    if clicks <= 4 then lines[#lines + 1] = "  CLICK " .. clean(child:GetFullName()) .. " | range=" .. tostring(child.MaxActivationDistance) end
+                elseif details < 10 and (child:IsA("RemoteEvent") or child:IsA("RemoteFunction") or child:IsA("LocalScript") or child:IsA("ModuleScript")) then
+                    details = details + 1
+                    lines[#lines + 1] = "  child " .. clean(child.ClassName) .. " " .. clean(child:GetFullName())
+                end
+            end
+            lines[#lines + 1] = "  promptCount=" .. prompts .. " clickCount=" .. clicks
+            if object:IsA("Tool") then
+                lines[#lines + 1] = "  tool enabled=" .. tostring(object.Enabled) .. " requiresHandle=" .. tostring(object.RequiresHandle)
+                    .. " manualActivationOnly=" .. tostring(object.ManualActivationOnly)
+            end
+        end)
+        if not ok then lines[#lines + 1] = "  inspectionError=" .. clean(err) end
+    end
+    local _, rootPart = character()
+    local nearby = {}
+    if rootPart then
+        -- Ignore the text filter: a hidden nearby item still explains a failed pull.
+        for _, item in ipairs(S.items) do
+            if item.part:IsDescendantOf(Workspace) and item.object:IsDescendantOf(Workspace) then
+                local distance = (item.part.Position - rootPart.Position).Magnitude
+                if distance <= 60 or item.object == S.selected then nearby[#nearby + 1] = {item = item, distance = distance} end
+            end
+        end
+        table.sort(nearby, function(a, b)
+            if (a.item.object == S.selected) ~= (b.item.object == S.selected) then return a.item.object == S.selected end
+            return a.distance < b.distance
+        end)
+        for i = 1, math.min(3, #nearby) do
+            local entry, item = nearby[i], nearby[i].item
+            local assembly = item.part.AssemblyRootPart or item.part
+            lines[#lines + 1] = string.format("ITEM %d | distance=%.1f | anchored=%s | rootAnchored=%s", i, entry.distance, tostring(item.part.Anchored), tostring(assembly.Anchored))
+            describe(item.object, "  object")
+        end
+    end
+    if #nearby == 0 then lines[#lines + 1] = "No candidate within 60 studs; stand beside an item and scan again." end
+    local held = 0
+    if player.Character then
+        for _, child in ipairs(player.Character:GetChildren()) do
+            if child:IsA("Tool") then held = held + 1 if held <= 2 then describe(child, "HELD TOOL") end end
+        end
+    end
+    if held == 0 then lines[#lines + 1] = "No equipped Tool found; equip the harpoon before copying the report." end
+    return table.concat(lines, "\n")
+end
 -- END SEA ITEM LOGIC
 local function clearMarkers()
     for _, obj in pairs(S.markers) do obj:Destroy() end
@@ -3021,7 +3108,7 @@ local stop
 -- 01 / Update
 do
     local p = pages[1]
-    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.2 BETA  /  18 OCT 2026")
+    title(p, "อัปเดตแรก", "SATURN X  /  V1.0.3 BETA  /  18 OCT 2026")
     info(p, "SILVER ORBIT\nเมนู 8 หมวด • ลากแถบด้านบนเพื่อย้าย\nย่อเป็นปุ่มดาวเสาร์ • รองรับเมาส์และสัมผัส", C.text)
     info(p, "ในเวอร์ชันนี้\n• โลโก้และเสียงที่ BM ส่งมา\n• รูปอวตาร ชื่อ และข้อมูลผู้เล่นจริง\n• ค้นหาทรัพยากร / ป้ายระยะ / เลือกของ\n• ดึงของแบบทดลอง / บิน / จุดบันทึก", C.text)
     info(p, "สถานะ: ยังไม่ได้ทดสอบในเซิร์ฟเวอร์จริง\nดึงของใช้ฟิสิกส์ฝั่งเครื่อง ชื่อและโฟลเดอร์ของเป็นเกณฑ์ค้นหาเบื้องต้น จึงอาจตรวจไม่พบหรือขยับไม่ได้", C.orange)
@@ -3072,6 +3159,13 @@ do
     action(p, "ดึงชิ้นที่เลือก 4 วินาที", function() beginPull(true) end, true)
     action(p, "หยุดดึงของ", function() S.pullUntil = 0 S.pullSelection = nil toggleSetters.pull(false, true) end, true)
     pullInfo = info(p, "ยังไม่มีคำสั่งดึงของ")
+    action(p, "ตรวจของใกล้ตัว / คัดลอกรายงาน", function() copyItemReport() end)
+    info(p, "ถือฉมวกและยืนใกล้ของ แล้วกดตรวจ จากนั้นวางข้อความในแชต\nปุ่มตรวจอ่านข้อมูลอย่างเดียว ไม่ได้ยิงฉมวกหรือเก็บของ")
+    quickReportBox = make("TextBox", {Text = "", Visible = false, TextColor3 = C.text, TextSize = 12, Font = Enum.Font.Code,
+        TextWrapped = true, MultiLine = true, ClearTextOnFocus = false, TextEditable = true,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        BackgroundColor3 = C.card, Size = UDim2.new(1, 0, 0, 220), BorderSizePixel = 0}, p)
+    corner(quickReportBox, 10)
 end
 -- 05 / Resource scanner
 do
@@ -3142,7 +3236,7 @@ do
 end
 -- 08 / Visuals, sound, and diagnostics
 local mediaInfo
-local function buildReport()
+buildReport = function()
     local lines = {"SATURN X " .. CONFIG.Version, "place=" .. game.PlaceId .. " universe=" .. game.GameId,
         "gameMatch=" .. tostring(S.gameMatch), "scanParts=" .. S.scanCount .. " cap=" .. tostring(S.scanCapped),
         "candidates=" .. #S.items, "clientPullAttempts=" .. S.attempts, "lastError=" .. S.lastError,
@@ -3174,7 +3268,26 @@ local function buildReport()
             end
         end
     end
+    table.insert(lines, interactionReport())
     return table.concat(lines, "\n")
+end
+copyItemReport = function()
+    if not S.alive then return end
+    S.pullUntil = 0 S.pullSelection = nil
+    if toggleSetters.pull then toggleSetters.pull(false, true) end
+    -- Let a current scan finish before refreshing; never generate a half-built report.
+    local deadline = os.clock() + 3
+    while S.scanBusy and S.alive and os.clock() < deadline do task.wait(0.05) end
+    if not S.alive then return end
+    if S.scanBusy then notify("กำลังสแกนอยู่ รอสักครู่แล้วกดตรวจอีกครั้ง") return end
+    scan()
+    if not S.alive then return end
+    local report = buildReport()
+    if diagnosticBox then diagnosticBox.Text = report end
+    if quickReportBox then quickReportBox.Text = report quickReportBox.Visible = true end
+    local copied = type(setclipboard) == "function" and pcall(setclipboard, report)
+    if copied then notify("คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย")
+    else notify("คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก") end
 end
 do
     local p = pages[8]
@@ -3205,10 +3318,7 @@ do
         TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
         BackgroundColor3 = C.card, Size = UDim2.new(1, 0, 0, 180), BorderSizePixel = 0}, p) corner(diagnosticBox, 10)
     make("UIPadding", {PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, diagnosticBox)
-    action(p, "คัดลอกรายงาน", function()
-        local report = buildReport() diagnosticBox.Text = report
-        if type(setclipboard) == "function" then setclipboard(report) notify("คัดลอกรายงานแล้ว") else notify("เครื่องนี้ไม่มีคำสั่งคัดลอก ใช้ภาพหน้าจอแทนครับ") end
-    end, true)
+    action(p, "คัดลอกรายงาน", function() copyItemReport() end, true)
     action(p, "หยุดทั้งหมด / คืนค่า", function() resetFeatures() notify("ปิดทุกฟีเจอร์แล้ว") end, true)
     action(p, "ปิด SATURN X", function() stop() end, true)
 end

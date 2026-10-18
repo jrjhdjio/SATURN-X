@@ -2846,5 +2846,25 @@
   "ล้างคำค้น / สแกนใหม่": {
     "en": "Clear filter / Scan again",
     "zh": "清空筛选 / 重新扫描"
+  },
+  "ตรวจของใกล้ตัว / คัดลอกรายงาน": {
+    "en": "Inspect nearby items / Copy report",
+    "zh": "检查附近物品 / 复制报告"
+  },
+  "ถือฉมวกและยืนใกล้ของ แล้วกดตรวจ จากนั้นวางข้อความในแชต\nปุ่มตรวจอ่านข้อมูลอย่างเดียว ไม่ได้ยิงฉมวกหรือเก็บของ": {
+    "en": "Equip the harpoon near an item, inspect, then paste the report in chat\nInspection only reads data; it does not fire or collect items",
+    "zh": "手持鱼叉靠近物品，点击检查后将报告粘贴到聊天中\n检查仅读取数据，不会发射鱼叉或拾取物品"
+  },
+  "กำลังสแกนอยู่ รอสักครู่แล้วกดตรวจอีกครั้ง": {
+    "en": "A scan is running; try inspecting again shortly",
+    "zh": "正在扫描，请稍后再次检查"
+  },
+  "คัดลอกรายงานแล้ว กลับแชตแล้วกดวางข้อความได้เลย": {
+    "en": "Report copied; return to chat and paste it",
+    "zh": "报告已复制，请返回聊天并粘贴"
+  },
+  "คัดลอกอัตโนมัติไม่ได้ แตะช่องรายงานค้างเพื่อเลือกทั้งหมดและคัดลอก": {
+    "en": "Automatic copy unavailable; long-press the report to select all and copy",
+    "zh": "无法自动复制，请长按报告以全选并复制"
   }
 }

@@ -98,7 +98,7 @@ S={alive=true,items={},scanGeneration=0,resourceWords={'wood','log','plank','scr
 scanRadius=180,pullRadius=60,pullLimit=8,search='',gameMatch=true,attempts=0,pullUntil=0,pull=false}
 local f=assert(io.open('SATURN_X.lua'));local source=f:read('*a');f:close()
 local block=assert(source:match('%-%- BEGIN SEA ITEM LOGIC(.-)%-%- END SEA ITEM LOGIC'))
-local api=assert(load(block..'\nreturn {candidate=candidate,scan=scan,list=filteredItems,pull=pullOnce,begin=beginPull,tick=updatePull,block=pullBlock}', '@sea-item-logic'))()
+local api=assert(load(block..'\nreturn {candidate=candidate,scan=scan,list=filteredItems,pull=pullOnce,begin=beginPull,tick=updatePull,block=pullBlock,report=interactionReport}', '@sea-item-logic'))()
 local checks=0
 local function expect(ok,message) assert(ok,message);checks=checks+1 end
 local function part(parent,name,anchored,position)
@@ -183,4 +183,22 @@ api.scan();expect(S.items==sentinel and not S.scanBusy,'respawn cancels pending 
 local bad=model('Wood');local badPart=part(bad,'Mesh');bad.extents={}
 api.scan();expect(S.scanErrors>0 and has(late) and not S.scanBusy,'per-object failure isolated')
 S.alive=false;attempts=S.attempts;S.pull=true;api.tick();expect(S.attempts==attempts,'closed UI cannot pull')
+-- Read-only diagnostic output must include actual nearby objects and the equipped tool.
+function methods:GetAttributes() return self.attrs end
+S.alive=true;S.selected=nil;S.search='unrelated filter'
+S.items={api.candidate(fixedPart),api.candidate(promptedPart)}
+local harpoon=obj('Tool',char,{Name='Harpoon',Enabled=true,RequiresHandle=true,ManualActivationOnly=false})
+obj('LocalScript',harpoon,{Name='Controller',ClassName='LocalScript'})
+local control=obj('RemoteEvent',harpoon,{Name='Throw',ClassName='RemoteEvent'})
+control.FireServer=function() error('diagnostics must not send requests') end
+fixed:SetAttribute('ItemType','Wood');fixed:SetAttribute('UnrelatedSecret','do-not-log')
+local report=api.report()
+expect(report:find('anchored=true',1,true) and report:find('promptCount=0',1,true),'report includes anchored objects without interactions')
+expect(report:find('action=Take',1,true) and report:find('promptCount=1',1,true),'report includes exact pickup prompt details')
+expect(report:find('HELD TOOL:',1,true) and report:find('Harpoon',1,true) and report:find('Controller',1,true),'report identifies equipped tool and controller names')
+expect(report:find('ItemType=Wood',1,true) and not report:find('do-not-log',1,true),'only item-related attributes reported')
+expect(fixedPart.Anchored and not api.candidate(promptedPart).prompt.begins,'report does not change anchoring or activate prompts')
+harpoon.Parent=nil;equipped.Parent=nil;S.items={}
+report=api.report()
+expect(report:find('No candidate within 60',1,true) and report:find('No equipped Tool found',1,true),'empty report explains how to obtain useful evidence')
 print('PASS '..checks..' sea item regressions (mock instances; live game not tested)')
