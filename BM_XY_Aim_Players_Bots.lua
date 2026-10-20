@@ -1,8 +1,8 @@
--- BM XY AIM V6.1 / 2026-10-18 / เพิ่มตัวกรองศพและจำร่างที่เคยตาย
+-- BM XY AIM V6.2 / 2026-10-20 / ไม่หมุนหาเมื่อไม่มีเป้า + กรองศพ
 -- ข้ามสถานะ Dead, เหตุการณ์ Died, ร่างผู้เล่นเก่าที่เคยตรวจพบ และป้ายกำกับศพ
 -- ไม่ตัดสินจากการนอน/ล้ม/Ragdoll อย่างเดียว; เกิดใหม่เป็นร่างใหม่ยังเลือกได้
 -- ศพที่สร้างใหม่ เลือดเต็ม และไม่มีชื่อ/ป้าย/สถานะบอกว่าเป็นศพ ยังอาจแยกไม่ได้
--- เปิดปุ่ม: หาเป้าที่มีแนวเล็งโล่งทั้งหน้า/ข้าง/หลัง; ยังไม่พบจะหมุนหาอัตโนมัติ
+-- เปิดปุ่ม: หาเป้าที่มีแนวเล็งโล่งทั้งหน้า/ข้าง/หลัง; ไม่มีเป้าจะปล่อยให้ควบคุมกล้องเอง
 -- เป้าเดิมตาย/ถูกบัง/ออกระยะ: เลือกเป้าใหม่ในเฟรมถัดไปโดยไม่รอรอบค้นหา
 -- ฝัง MP3 ต้นฉบับไว้ในไฟล์นี้ (ข้อมูลเสียง ไม่ใช่โค้ดที่ดาวน์โหลดจากภายนอก)
 -- เสียงแนบใช้ writefile + getcustomasset ของตัวรัน ถ้าไม่มี ระบบเล็งยังทำงานต่อ
@@ -45,7 +45,7 @@ local CONFIG = {
     IgnoreCorpses = true,
     MaxDistance = 1500,
     AutoSearch360 = true,     -- รวมเป้านอกจอและด้านหลัง; ยังตรวจผนัง/ทีม/ระยะ
-    AutoRotateWhenNoTarget = true,
+    AutoRotateWhenNoTarget = false, -- ไม่มีเป้า: ไม่หมุนกล้องหาเอง
     SearchTurnSpeed = 90,     -- องศาต่อวินาทีขณะไม่มีเป้า; 90 = ครบรอบใน 4 วินาที
     AcquireAngle = 85,        -- ใช้เฉพาะเมื่อ AutoSearch360 = false
     SearchInterval = 0.05,    -- ตรวจเป้าใหม่ 20 ครั้ง/วินาทีเมื่อยังไม่พบ
@@ -1434,7 +1434,7 @@ local function status(state, name, detail)
     if clock < nextDiagnostic and lastDiagnosticState == state then return end
     nextDiagnostic = clock + 0.25
     lastDiagnosticState = state
-    local line1 = "V6.1 | " .. state
+    local line1 = "V6.2 | " .. state
     if name ~= "" then line1 = line1 .. ": " .. name end
     local line2 = "SCAN P=" .. scan.P .. " B=" .. scan.B .. " OK=" .. scan.valid .. " | " .. selfMode
     local reasonList = {}
@@ -2172,7 +2172,7 @@ RunService:BindToRenderStep(RENDER_NAME, Enum.RenderPriority.Last.Value + 1, fun
         warn("[BM XY] " .. tostring(message))
     end
 end)
-print("[BM XY V6.1] Ready: corpse filter, 360 target search, idle rotation, instant head lock, attached toggle audio. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
+print("[BM XY V6.2] Ready: corpse filter, 360 target search, idle rotation off, instant head lock, attached toggle audio. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
 
 SXSession:Bind(gui)
 SXSession:Finish()
