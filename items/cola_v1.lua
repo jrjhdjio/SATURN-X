@@ -218,7 +218,7 @@ local function drink()
     if drinking or os.clock() < readyAt or os.clock() < boostUntil then return end
     drinking, drinkStart = true, os.clock()
     local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-    shoulder = torso and (torso:FindFirstChild("RightShoulder") or torso:FindFirstChild("Right Shoulder"))
+    shoulder = character:FindFirstChild("RightShoulder", true) or (torso and torso:FindFirstChild("Right Shoulder"))
     if shoulder then originalC0 = shoulder.C0 end
     if sound and sound.IsLoaded then sound.TimePosition = 0; sound:Play() end
 end
