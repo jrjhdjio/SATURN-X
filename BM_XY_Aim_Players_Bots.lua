@@ -1,4 +1,4 @@
--- BM XY AIM V6.2 / 2026-10-20 / ไม่หมุนหาเมื่อไม่มีเป้า + กรองศพ
+-- BM XY AIM V6.3 / 2026-10-20 / กด F5 เปิด–ปิด + ไม่หมุนหาเมื่อไม่มีเป้า + กรองศพ
 -- ข้ามสถานะ Dead, เหตุการณ์ Died, ร่างผู้เล่นเก่าที่เคยตรวจพบ และป้ายกำกับศพ
 -- ไม่ตัดสินจากการนอน/ล้ม/Ragdoll อย่างเดียว; เกิดใหม่เป็นร่างใหม่ยังเลือกได้
 -- ศพที่สร้างใหม่ เลือดเต็ม และไม่มีชื่อ/ป้าย/สถานะบอกว่าเป็นศพ ยังอาจแยกไม่ได้
@@ -10,12 +10,12 @@
 -- V5 ค้นหาเป้าต่อได้แม้ Player.Character เป็น nil หรืออยู่นอก Workspace
 -- ถ้ามี CameraSubject ที่เป็นตัวละคร ใช้ระบุตัวเราเพื่อไม่เลือก/ตรวจชนตัวเอง
 -- ถ้าระบุตัวเราไม่ได้ จะเล็งจากกล้องและข้ามเป้าที่ใกล้กล้องมากกว่าเกณฑ์ด้านล่าง
--- ปุ่ม ○ / ●; ซ่อนข้อความสถานะแล้ว เสียงเล่นเฉพาะการแตะเปิด/ปิด ไม่เล่นตอนลาก
+-- ปุ่ม ○ / ●; ซ่อนข้อความสถานะ; เสียงเล่นเมื่อแตะหรือกด F5 เปิด/ปิด ไม่เล่นตอนลาก
 -- รองรับ Humanoid ที่อยู่ซ้อนใน Model และ Player.Character ที่ไม่มี Humanoid
 -- บอทยังต้องมี Humanoid; ไม่เดาว่าโมเดลตกแต่งเป็นบอท
 -- เป็นสคริปต์ฝั่ง client: ถ้าทดสอบใน Studio ใช้ LocalScript ใน StarterPlayerScripts
 -- ปิดสคริปต์ล็อกเป้าเก่าก่อนใช้ เพื่อลดการแย่งควบคุมกล้อง
--- แตะ = เปิด/ปิด, ลาก = ย้ายตำแหน่ง (ลากแล้วไม่สลับสถานะ)
+-- แตะหรือกด F5 = เปิด/ปิด, ลาก = ย้ายตำแหน่ง; F5 ไม่ทำงานขณะพิมพ์ในช่องข้อความ
 -- ล็อกเป้าเดิมจนตาย/ถูกบัง/ออกระยะ แล้วหาเป้าใหม่อัตโนมัติ
 -- ไม่มีการยิงอัตโนมัติ: ใช้ปุ่มยิงของเกมตามปกติ
 -- ยังไม่ได้ทดสอบใน Hypershot จริง; กล้อง/ตัวละคร/ปืนที่เกมเขียนเองอาจไม่รองรับ
@@ -34,6 +34,7 @@
 local CONFIG = {
     TargetPlayers = true,
     TargetBots = true,
+    ToggleKey = Enum.KeyCode.F5,
     ShowDiagnostics = false,  -- ซ่อนข้อความใต้ปุ่ม
     ToggleSoundEnabled = true,
     ToggleSoundVolume = 0.75,
@@ -1378,6 +1379,7 @@ local nextDiagnostic = 0
 local lastDiagnosticState = ""
 local scan = {P = 0, B = 0, valid = 0, reasons = {}, blocker = ""}
 local pointer = nil
+local toggleKeyDown = false
 local pointerStart = nil
 local centerStart = nil
 local dragged = false
@@ -1434,7 +1436,7 @@ local function status(state, name, detail)
     if clock < nextDiagnostic and lastDiagnosticState == state then return end
     nextDiagnostic = clock + 0.25
     lastDiagnosticState = state
-    local line1 = "V6.2 | " .. state
+    local line1 = "V6.3 | " .. state
     if name ~= "" then line1 = line1 .. ": " .. name end
     local line2 = "SCAN P=" .. scan.P .. " B=" .. scan.B .. " OK=" .. scan.valid .. " | " .. selfMode
     local reasonList = {}
@@ -1701,6 +1703,21 @@ local function playToggleSound()
     end
 end
 
+local function toggleAim()
+    if not running then return end
+    setEnabled(not enabled)
+    playToggleSound()
+end
+
+-- F5 สลับครั้งเดียวต่อการกด; ไม่แทรกตอนพิมพ์หรือเมื่อ UI รับปุ่มไปแล้ว
+connect(UserInputService.InputBegan, function(input, gameProcessedEvent)
+    if not running or input.UserInputType ~= Enum.UserInputType.Keyboard or
+       input.KeyCode ~= CONFIG.ToggleKey or toggleKeyDown then return end
+    toggleKeyDown = true
+    if gameProcessedEvent or UserInputService:GetFocusedTextBox() then return end
+    toggleAim()
+end)
+
 -- จับเฉพาะนิ้ว/เมาส์ที่เริ่มบนปุ่ม; นิ้วที่ใช้เดินหรือหมุนกล้องไม่ลากปุ่มตาม
 local function inputPoint(input)
     return Vector2.new(input.Position.X, input.Position.Y)
@@ -1726,6 +1743,10 @@ connect(UserInputService.InputChanged, function(input)
     if dragged then putButton(centerStart + delta) end
 end)
 connect(UserInputService.InputEnded, function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CONFIG.ToggleKey then
+        toggleKeyDown = false
+        return
+    end
     if not pointer then return end
     local isMouse = pointer.UserInputType == Enum.UserInputType.MouseButton1
     if input ~= pointer and not (isMouse and input.UserInputType == Enum.UserInputType.MouseButton1) then
@@ -1737,11 +1758,13 @@ connect(UserInputService.InputEnded, function(input)
     local cancelled = input.UserInputState == Enum.UserInputState.Cancel
     pointer = nil
     if not wasDrag and not cancelled then
-        setEnabled(not enabled)
-        playToggleSound()
+        toggleAim()
     end
 end)
-connect(UserInputService.WindowFocusReleased, function() pointer = nil end)
+connect(UserInputService.WindowFocusReleased, function()
+    pointer = nil
+    toggleKeyDown = false
+end)
 
 local function register(instance)
     if instance:IsA("Humanoid") and not humanoids[instance] then
@@ -2172,7 +2195,7 @@ RunService:BindToRenderStep(RENDER_NAME, Enum.RenderPriority.Last.Value + 1, fun
         warn("[BM XY] " .. tostring(message))
     end
 end)
-print("[BM XY V6.2] Ready: corpse filter, 360 target search, idle rotation off, instant head lock, attached toggle audio. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
+print("[BM XY V6.3] Ready: F5/tap toggle, corpse filter, 360 target search, idle rotation off, instant head lock, attached toggle audio. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
 
 SXSession:Bind(gui)
 SXSession:Finish()
