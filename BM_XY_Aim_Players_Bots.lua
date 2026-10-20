@@ -1,7 +1,7 @@
--- BM XY AIM V6.3 / 2026-10-20 / กด F5 เปิด–ปิด + ไม่หมุนหาเมื่อไม่มีเป้า + กรองศพ
+-- BM XY AIM V6.4 / 2026-10-20 / ตรวจโครงร่างและข้ามร่างล้ม + ติดตามร่างเก่า
 -- ข้ามสถานะ Dead, เหตุการณ์ Died, ร่างผู้เล่นเก่าที่เคยตรวจพบ และป้ายกำกับศพ
--- ไม่ตัดสินจากการนอน/ล้ม/Ragdoll อย่างเดียว; เกิดใหม่เป็นร่างใหม่ยังเลือกได้
--- ศพที่สร้างใหม่ เลือดเต็ม และไม่มีชื่อ/ป้าย/สถานะบอกว่าเป็นศพ ยังอาจแยกไม่ได้
+-- ข้าม Ragdoll/Physics/ร่างที่ข้อต่อขาดชั่วคราว; ตัวเป็นที่ล้มจะเลือกได้อีกเมื่อฟื้น
+-- ตรวจข้อต่อหัวถึงรากทั้ง Motor6D และ AnimationConstraint; โครงร่างเฉพาะเกมอาจไม่รองรับ
 -- เปิดปุ่ม: หาเป้าที่มีแนวเล็งโล่งทั้งหน้า/ข้าง/หลัง; ไม่มีเป้าจะปล่อยให้ควบคุมกล้องเอง
 -- เป้าเดิมตาย/ถูกบัง/ออกระยะ: เลือกเป้าใหม่ในเฟรมถัดไปโดยไม่รอรอบค้นหา
 -- ฝัง MP3 ต้นฉบับไว้ในไฟล์นี้ (ข้อมูลเสียง ไม่ใช่โค้ดที่ดาวน์โหลดจากภายนอก)
@@ -44,6 +44,8 @@ local CONFIG = {
     WallCheck = true,
     IgnoreForceFields = true,
     IgnoreCorpses = true,
+    StrictLiveRigCheck = true, -- ข้ามร่าง Humanoid ที่ไม่มีเส้นข้อต่อใช้งานจากรากถึงหัว
+    SkipRagdolls = true,      -- ข้ามชั่วคราว ไม่จำว่าตายถ้าเป็นเพียงการล้ม
     MaxDistance = 1500,
     AutoSearch360 = true,     -- รวมเป้านอกจอและด้านหลัง; ยังตรวจผนัง/ทีม/ระยะ
     AutoRotateWhenNoTarget = false, -- ไม่มีเป้า: ไม่หมุนกล้องหาเอง
@@ -1367,6 +1369,9 @@ local humanoids = {}
 local deadHumanoids = setmetatable({}, {__mode = "k"})
 local deadModels = setmetatable({}, {__mode = "k"})
 local characterOwners = setmetatable({}, {__mode = "k"})
+local retiredCharacters = setmetatable({}, {__mode = "k"})
+local playerWatches = {}
+local rigJointCache = setmetatable({}, {__mode = "k"})
 local current = nil
 local searchDirection = nil
 local lastCamera = nil
@@ -1436,11 +1441,11 @@ local function status(state, name, detail)
     if clock < nextDiagnostic and lastDiagnosticState == state then return end
     nextDiagnostic = clock + 0.25
     lastDiagnosticState = state
-    local line1 = "V6.3 | " .. state
+    local line1 = "V6.4 | " .. state
     if name ~= "" then line1 = line1 .. ": " .. name end
     local line2 = "SCAN P=" .. scan.P .. " B=" .. scan.B .. " OK=" .. scan.valid .. " | " .. selfMode
     local reasonList = {}
-    for _, key in ipairs({"DEAD", "CORPSE", "TEAM", "SHIELD", "NO_HEAD", "NEAR", "RANGE", "OFFSCREEN", "WALL", "DISABLED"}) do
+    for _, key in ipairs({"DEAD", "CORPSE", "INACTIVE", "RIG", "TEAM", "SHIELD", "NO_HEAD", "NEAR", "RANGE", "OFFSCREEN", "WALL", "DISABLED"}) do
         if (scan.reasons[key] or 0) > 0 then
             reasonList[#reasonList + 1] = key .. "=" .. scan.reasons[key]
         end
@@ -1766,6 +1771,44 @@ connect(UserInputService.WindowFocusReleased, function()
     toggleKeyDown = false
 end)
 
+-- จดร่างของผู้เล่นตั้งแต่เริ่ม ไม่ต้องรอให้ถูกเลือกเป็นเป้า
+local function retireCharacter(model)
+    if not model then return end
+    retiredCharacters[model] = true
+    nextSearch = 0
+end
+
+local function watchPlayer(player)
+    if playerWatches[player] then return end
+    local watch = {character = nil, connections = {}}
+    playerWatches[player] = watch
+    local function remember(model)
+        if watch.character and watch.character ~= model then retireCharacter(watch.character) end
+        watch.character = model
+        if model then
+            characterOwners[model] = player
+            retiredCharacters[model] = nil
+        end
+    end
+    watch.connections[1] = player.CharacterAdded:Connect(remember)
+    watch.connections[2] = player.CharacterRemoving:Connect(function(model)
+        retireCharacter(model)
+        if watch.character == model then watch.character = nil end
+    end)
+    remember(player.Character)
+end
+
+local function unwatchPlayer(player)
+    local watch = playerWatches[player]
+    if not watch then return end
+    retireCharacter(watch.character)
+    for _, connection in ipairs(watch.connections) do connection:Disconnect() end
+    playerWatches[player] = nil
+end
+connect(Players.PlayerAdded, watchPlayer)
+connect(Players.PlayerRemoving, unwatchPlayer)
+for _, player in ipairs(Players:GetPlayers()) do watchPlayer(player) end
+
 local function register(instance)
     if instance:IsA("Humanoid") and not humanoids[instance] then
         -- จับการตายแม้ปุ่มปิดอยู่ หรือเกมเปลี่ยนค่าเลือดก่อนรอบค้นหาครั้งต่อไป
@@ -1908,6 +1951,7 @@ end
 
 local function isCorpse(model, humanoid, owner)
     if not CONFIG.IgnoreCorpses then return false end
+    if retiredCharacters[model] then return true end
     if humanoid and deadHumanoids[humanoid] then return true end
     local remembered = deadModels[model]
     if remembered and (remembered == humanoid or (remembered == true and not humanoid)) then return true end
@@ -1920,6 +1964,83 @@ local function isCorpse(model, humanoid, owner)
         if (object:IsA("Model") or object:IsA("Folder")) and
            corpseMarker(object, object ~= model or owner == nil) then return true end
         object = object.Parent
+    end
+    return false
+end
+
+local ragdollFlags = {"Ragdoll", "Ragdolled", "IsRagdoll", "IsRagdolled", "KnockedDown"}
+local function temporarilyInactive(model, humanoid)
+    if not CONFIG.SkipRagdolls then return false end
+    if humanoid then
+        local state = humanoid:GetState()
+        if humanoid.PlatformStand or state == Enum.HumanoidStateType.Ragdoll or
+           state == Enum.HumanoidStateType.Physics or state == Enum.HumanoidStateType.FallingDown then
+            return true
+        end
+    end
+    for _, key in ipairs(ragdollFlags) do
+        if model:GetAttribute(key) == true or (humanoid and humanoid:GetAttribute(key) == true) then return true end
+        local flag = model:FindFirstChild(key)
+        if flag and flag:IsA("BoolValue") and flag.Value then return true end
+    end
+    return false
+end
+
+local function attachmentPart(attachment)
+    local object = attachment and attachment.Parent
+    while object and not object:IsA("BasePart") do object = object.Parent end
+    return object
+end
+
+local function connectedLiveRig(model, humanoid)
+    if not CONFIG.StrictLiveRigCheck or not humanoid then return true end
+    local root = humanoid.RootPart or model:FindFirstChild("HumanoidRootPart", true)
+    local head = model:FindFirstChild("Head", true) or model:FindFirstChild("UpperTorso", true) or model:FindFirstChild("Torso", true)
+    if not root or not head or not root:IsA("BasePart") or not head:IsA("BasePart") or
+       root == head or not root:IsDescendantOf(model) or not head:IsDescendantOf(model) then return false end
+    local cached = rigJointCache[model]
+    if not cached or clock >= cached.refreshAt then
+        cached = {joints = {}, refreshAt = clock + 0.25}
+        for _, object in ipairs(model:GetDescendants()) do
+            if object:IsA("JointInstance") or object:IsA("WeldConstraint") or object:IsA("AnimationConstraint") then
+                cached.joints[#cached.joints + 1] = object
+            end
+        end
+        rigJointCache[model] = cached
+    end
+    local graph = {}
+    for _, joint in ipairs(cached.joints) do
+        -- อ่าน Enabled/ปลายข้อต่อใหม่ทุกเฟรม เพื่อปล่อยเป้าทันทีเมื่อถูกถอดข้อต่อ
+        if joint.Parent and joint:IsDescendantOf(model) and joint.Enabled then
+            local a, b
+            if joint:IsA("AnimationConstraint") then
+                -- ไม่รวม BallSocketConstraint ที่ทำให้ศพตกกองเป็น Ragdoll
+                if joint.IsKinematic or (joint.MaxTorque > 0 and joint.AngularStrength > 0) then
+                    a, b = attachmentPart(joint.Attachment0), attachmentPart(joint.Attachment1)
+                end
+            else
+                a, b = joint.Part0, joint.Part1
+            end
+            if a and b and a:IsDescendantOf(model) and b:IsDescendantOf(model) then
+                graph[a] = graph[a] or {}
+                graph[b] = graph[b] or {}
+                graph[a][#graph[a] + 1] = b
+                graph[b][#graph[b] + 1] = a
+            end
+        end
+    end
+    local visited, queue = {[root] = true}, {root}
+    local index = 1
+    while index <= #queue do
+        local part = queue[index]
+        if part == head then return true end
+        for _, neighbor in ipairs(graph[part] or {}) do
+            if not visited[neighbor] then
+                visited[neighbor] = true
+                queue[#queue + 1] = neighbor
+            end
+        end
+        index = index + 1
     end
     return false
 end
@@ -1937,7 +2058,10 @@ local function evaluate(subject, camera, acquiring)
     while not owner and ancestor and ancestor ~= Workspace do
         if ancestor:IsA("Model") then
             owner = Players:GetPlayerFromCharacter(ancestor)
-            if owner then model = ancestor; break end
+            if owner or characterOwners[ancestor] or retiredCharacters[ancestor] then
+                model = ancestor
+                break
+            end
         end
         ancestor = ancestor.Parent
     end
@@ -1954,6 +2078,8 @@ local function evaluate(subject, camera, acquiring)
         return reject("DEAD")
     end
     if isCorpse(model, humanoid, owner) then return reject("CORPSE") end
+    if temporarilyInactive(model, humanoid) then return reject("INACTIVE") end
+    if not connectedLiveRig(model, humanoid) then return reject("RIG") end
     if owner and not CONFIG.TargetPlayers then return reject("DISABLED") end
     if not owner and not CONFIG.TargetBots then return reject("DISABLED") end
     if friendly(model, owner) then return reject("TEAM") end
@@ -2068,11 +2194,17 @@ local function cleanup()
     RunService:UnbindFromRenderStep(RENDER_NAME)
     for _, connection in ipairs(connections) do connection:Disconnect() end
     for _, connection in pairs(humanoids) do connection:Disconnect() end
+    for _, watch in pairs(playerWatches) do
+        for _, connection in ipairs(watch.connections) do connection:Disconnect() end
+    end
     connections = {}
     humanoids = {}
     deadHumanoids = {}
     deadModels = {}
     characterOwners = {}
+    retiredCharacters = {}
+    playerWatches = {}
+    rigJointCache = {}
     gui:Destroy()
 end
 connect(shutdown.Event, cleanup)
@@ -2195,7 +2327,7 @@ RunService:BindToRenderStep(RENDER_NAME, Enum.RenderPriority.Last.Value + 1, fun
         warn("[BM XY] " .. tostring(message))
     end
 end)
-print("[BM XY V6.3] Ready: F5/tap toggle, corpse filter, 360 target search, idle rotation off, instant head lock, attached toggle audio. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
+print("[BM XY V6.4] Ready: strict live rig filter, lifecycle tracking, F5/tap toggle, 360 search, idle rotation off. AudioState=" .. tostring(gui:GetAttribute("AudioState")))
 
 SXSession:Bind(gui)
 SXSession:Finish()
