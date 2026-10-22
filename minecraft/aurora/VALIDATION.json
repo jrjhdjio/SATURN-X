@@ -1,10 +1,11 @@
 {
   "status": "PASS",
-  "json_files": 135,
+  "version": "2.0.0",
+  "json_files": 142,
   "client_biomes": 87,
   "custom_visual_identifiers": 31,
-  "presets": 2,
-  "archive_bytes": 100896,
+  "presets": 3,
+  "archive_bytes": 105075,
   "checks": [
     "JSON parsing",
     "manifest UUIDs",

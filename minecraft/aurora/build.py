@@ -4,7 +4,6 @@
 Input: ../vanilla-reference, pinned in UPSTREAM.json. No runtime code or mods.
 Rebuild with the Python standard library; pack_icon.png is a committed asset.
 """
-import copy
 import json
 import shutil
 import zipfile
@@ -15,6 +14,8 @@ REF = ROOT.parent / 'vanilla-reference'
 PACK = ROOT / 'pack'
 OUT = ROOT / 'dist'
 NS = 'saturn_aurora'
+VERSION = [2, 0, 0]
+VERSION_TEXT = '.'.join(map(str, VERSION))
 
 def write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -27,51 +28,52 @@ def obj(kind, ident, version, **kw):
 def curve(*pairs):
     return {str(t): v for t, v in pairs}
 
-def make_lighting(name, factor=1, sky=.90, ambient=.028):
+def make_lighting(name, factor=1, sky=.95, ambient=.042):
     # Minecraft VV keys use noon=0; sunset=.25; midnight=.5; sunrise=.75.
     # Stay close to the shipped 26.50 sample's 100-lux noon calibration.
-    lux = curve((0.0,112),(.17,64),(.23,24),(.25,15),(.282,1.0),(.292,0),
-                (.5,0),(.709,0),(.719,1.0),(.75,17),(.82,58),(1.0,112))
+    lux = curve((0.0,104),(.17,65),(.23,26),(.25,17),(.282,1.0),(.292,0),
+                (.5,0),(.709,0),(.719,1.0),(.75,19),(.82,60),(1.0,104))
     lux = {k:round(v * factor, 4) for k,v in lux.items()}
-    color = curve((0.0,'#FFF6E8'),(.17,'#FFEACD'),(.25,'#FFC18B'),(.30,'#E9B1B7'),
+    color = curve((0.0,'#FFF1DC'),(.17,'#FFE1B5'),(.25,'#FFB16D'),(.30,'#EBA0B1'),
                   (.35,'#CDD9F9'),(.5,'#CDD9F9'),(.65,'#CDD9F9'),(.70,'#F2B9B0'),
-                  (.75,'#FFD0A0'),(.84,'#FFF0D7'),(1.0,'#FFF6E8'))
+                  (.75,'#FFC38B'),(.84,'#FFEAC5'),(1.0,'#FFF1DC'))
     return obj('lighting',name,'1.21.80',
         directional_lights={'orbital':{'sun':{'illuminance':lux,'color':color},
-            'moon':{'illuminance':curve((0.0,0),(.20,0),(.23,.40),(.735,.40),(.75,0),(1.0,0)),
-                    'color':'#C2D6FF'},'orbital_offset_degrees':0.0},
+            'moon':{'illuminance':curve((0.0,0),(.20,0),(.23,.46),(.34,.56),(.5,.60),(.66,.56),(.735,.46),(.75,0),(1.0,0)),
+                    'color':'#BED7FF'},'orbital_offset_degrees':0.0},
             'flash':{'illuminance':4.0,'color':'#CFB6FF'}},
-        emissive={'desaturation':.14},ambient={'illuminance':ambient,'color':'#D7E3FF'},
+        emissive={'desaturation':.12},ambient={'illuminance':ambient,'color':'#CCDCFA'},
         sky={'intensity':sky})
 
 def make_atmos(name, family):
-    day = {'temperate':'#458CC7','tropical':'#378FC3','arid':'#619BC7',
-           'alpine':'#4D8DBD','cherry':'#5D94C7','mystic':'#5D7A9D'}[family]
-    horizon = {'temperate':'#C2E0EA','tropical':'#B6E4DA','arid':'#E5D7B9',
-               'alpine':'#C9E5EF','cherry':'#E5D6E7','mystic':'#ABBCC9'}[family]
+    day = {'temperate':'#286BA5','tropical':'#1E78AC','arid':'#487EA7',
+           'alpine':'#3676A8','cherry':'#4C76AE','mystic':'#4D6388'}[family]
+    horizon = {'temperate':'#8AB8D1','tropical':'#88C9CA','arid':'#C9BDA3',
+               'alpine':'#A7CEDF','cherry':'#C7B4D1','mystic':'#92A6B8'}[family]
     return obj('atmosphere',name,'1.21.40',
-        horizon_blend_stops={'min':0.0,'start':curve((0.0,.75),(.25,.42),(.35,.28),(.65,.28),(.75,.32),(1.0,.75)),
+        horizon_blend_stops={'min':0.0,'start':curve((0.0,.62),(.25,.38),(.35,.28),(.65,.28),(.75,.32),(1.0,.62)),
                              'mie_start':.55,'max':.25},
-        rayleigh_strength=curve((0.0,9.0),(.20,7.0),(.25,4.8),(.34,4.7),
-                                (.5,5.0),(.66,4.7),(.75,4.8),(.84,7.0),(1.0,9.0)),
-        sun_mie_strength=curve((0.0,.03),(.18,.18),(.25,.95),(.31,.22),
-                               (.4,0),(.6,0),(.7,.22),(.75,.85),(.84,.18),(1.0,.03)),
+        rayleigh_strength=curve((0.0,6.8),(.20,5.8),(.25,4.6),(.34,4.7),
+                                (.5,5.0),(.66,4.7),(.75,4.6),(.84,5.8),(1.0,6.8)),
+        sun_mie_strength=curve((0.0,.015),(.18,.15),(.25,1.12),(.31,.25),
+                               (.4,0),(.6,0),(.7,.25),(.75,.98),(.84,.15),(1.0,.015)),
         moon_mie_strength=curve((0.0,0),(.28,0),(.35,.035),(.5,.06),(.65,.035),(.72,0),(1.0,0)),
         sun_glare_shape=.06,
-        sky_zenith_color=curve((0.0,day),(.18,day),(.25,'#4D5C95'),(.33,'#252B54'),
-                               (.5,'#101C38'),(.66,'#252B54'),(.75,'#647AA5'),(.85,day),(1.0,day)),
-        sky_horizon_color=curve((0.0,horizon),(.16,horizon),(.25,'#F7A278'),
-                                (.30,'#BE7E9C'),(.36,'#605C89'),(.5,'#435A83'),
-                                (.64,'#605C89'),(.70,'#CF93A4'),(.75,'#F5C098'),
+        sky_zenith_color=curve((0.0,day),(.18,day),(.25,'#684B8A'),(.33,'#323860'),
+                               (.5,'#192A4C'),(.66,'#323860'),(.75,'#637AB0'),(.85,day),(1.0,day)),
+        sky_horizon_color=curve((0.0,horizon),(.16,horizon),(.25,'#FFA473'),
+                                (.30,'#CB7B9F'),(.36,'#6B6798'),(.5,'#526C9E'),
+                                (.64,'#6B6798'),(.70,'#D68EA6'),(.75,'#FFC08C'),
                                 (.86,horizon),(1.0,horizon)))
 
-def make_grade(name, saturation=1.06, temperature=6500, contrast=1.045):
+def make_grade(name, saturation=1.12, temperature=6500, contrast=1.11, outdoor=True):
     def band(gain, sat, con, gamma=2.2):
         return {'contrast':[con]*3,'gain':gain,'gamma':[gamma]*3,
                 'offset':[0.0]*3,'saturation':[sat]*3}
-    shadow=band([.99,1.0,1.025],1.0,1.015,2.23)
-    shadow.update(enabled=True,shadowsMax=.55)
-    highlight=band([1.015,1.0,.985],1.015,1.01)
+    shadow=band([1.025,1.045,1.075],1.025,1.0,2.30) if outdoor else band([.99,1.0,1.025],1.0,1.015,2.23)
+    if outdoor: shadow['offset']=[.002,.003,.005]
+    shadow.update(enabled=True,shadowsMax=.70 if outdoor else .55)
+    highlight=band([.970,.955,.935],1.035,1.015,2.18) if outdoor else band([1.015,1.0,.985],1.015,1.01)
     highlight.update(enabled=True,highlightsMin=1.8)
     return obj('color_grading',name,'1.21.90',
         color_grading={'midtones':band([1.0,1.0,1.0],saturation,contrast),
@@ -81,23 +83,26 @@ def make_grade(name, saturation=1.06, temperature=6500, contrast=1.045):
 
 WATER = {
     # CDOM, chlorophyll, sediment, wave depth, frequency, speed
-    'clear':(.06,.12,.08,.20,.65,.85),
-    'ocean':(.025,.18,.08,.44,.58,1.05),
-    'tropical':(.015,.08,.035,.32,.68,.95),
-    'deep':(.04,.35,.12,.50,.54,1.10),
-    'river':(.30,.22,.35,.16,.85,.90),
-    'alpine':(.02,.08,.035,.15,.75,.70),
-    'swamp':(1.5,1.15,1.0,.10,.85,.55),
+    'clear':(.04,.12,.06,.28,.32,.65),
+    'ocean':(.025,.18,.08,.85,.24,.82),
+    'tropical':(.015,.08,.035,.65,.29,.78),
+    'deep':(.04,.35,.12,1.05,.20,.95),
+    'river':(.30,.22,.35,.15,.48,.72),
+    'alpine':(.02,.08,.035,.14,.38,.60),
+    'swamp':(1.5,1.15,1.0,.08,.45,.45),
 }
 
-def make_water(name, values, calm=False):
+def make_water(name, values, preset='cinematic'):
     cdom, chl, sediment, depth, frequency, speed = values
     return obj('water',f'water_{name}','1.21.120',
         particle_concentrations={'cdom':cdom,'chlorophyll':chl,'suspended_sediment':sediment},
-        waves={'enabled':not calm,'depth':depth,'direction_increment':80.0,'frequency':frequency,
-               'frequency_scaling':1.20,'mix':.22,'octaves':12,'pull':.32,
-               'shape':1.5,'speed':speed,'speed_scaling':1.03},
-        caustics={'enabled':True,'frame_length':.055,'power':2,'scale':.55})
+        # Broad swells: fewer high-frequency crests than v1, with more layers in
+        # Ultra. These are image-based surface waves, not displaced geometry.
+        waves={'enabled':preset!='calm','depth':depth if preset=='cinematic' else round(depth*.72,4),
+               'direction_increment':80.0,'frequency':frequency,
+               'frequency_scaling':1.17,'mix':.16,'octaves':16 if preset=='cinematic' else 8,
+               'pull':.24,'shape':1.3,'speed':speed,'speed_scaling':1.015},
+        caustics={'enabled':True,'frame_length':.065,'power':1,'scale':.45})
 
 def group(name):
     if name in {'hell','crimson_forest','warped_forest','soulsand_valley','basalt_deltas'}:
@@ -125,18 +130,19 @@ def main():
     OUT.mkdir(parents=True,exist_ok=True)
     write(PACK/'manifest.json',{
         'format_version':2,
-        'header':{'name':'SATURN X | AURORA','description':'Golden light, cinematic skies and clear water. Requires Vibrant Visuals. v1.0.0',
-                  'uuid':'2f21dc79-bfee-4cb3-aec4-a35ce5820cf2','version':[1,0,0],'min_engine_version':[1,21,120]},
-        'modules':[{'type':'resources','uuid':'adc92f7a-81ef-49f8-a960-19b71943d1d8','version':[1,0,0]}],
+        'header':{'name':'SATURN X | AURORA 2 - ULTRA OCEAN','description':f'Rich cinematic color, golden sunsets, blue moonlight and rolling ocean waves. Requires Vibrant Visuals. v{VERSION_TEXT}',
+                  'uuid':'2f21dc79-bfee-4cb3-aec4-a35ce5820cf2','version':VERSION,'min_engine_version':[1,21,120]},
+        'modules':[{'type':'resources','uuid':'adc92f7a-81ef-49f8-a960-19b71943d1d8','version':VERSION}],
         'capabilities':['pbr'],
         'subpacks':[{'folder_name':'calm','name':'CALM | Same lighting, wave effect off','memory_tier':0},
-                    {'folder_name':'cinematic','name':'CINEMATIC | Full water waves','memory_tier':0}],
+                    {'folder_name':'balanced','name':'BALANCED | Cinematic color, lighter waves','memory_tier':0},
+                    {'folder_name':'cinematic','name':'ULTRA OCEAN | Rich color and full ocean swells','memory_tier':0}],
         'metadata':{'authors':['BM / SATURN X'],'url':'https://github.com/jrjhdjio/SATURN-X/tree/main/minecraft/aurora'}
     })
     families = {
-        'temperate':(1,.90,.028,1.06,6500), 'tropical':(.97,.95,.028,1.075,6500),
-        'arid':(1.05,.90,.026,1.035,6700), 'alpine':(.94,.98,.03,1.035,6200),
-        'cherry':(.98,.95,.03,1.05,6600), 'mystic':(.85,.84,.027,1.025,6350),
+        'temperate':(1,.95,.042,1.12,6550), 'tropical':(.97,.98,.042,1.14,6500),
+        'arid':(1.03,.94,.038,1.075,6750), 'alpine':(.94,1.0,.042,1.08,6250),
+        'cherry':(.98,.98,.044,1.115,6600), 'mystic':(.85,.90,.039,1.07,6400),
     }
     for fam,(power,sky,ambient,saturation,temp) in families.items():
         write(PACK/f'lighting/{fam}.json',make_lighting(f'light_{fam}',power,sky,ambient))
@@ -147,13 +153,14 @@ def main():
     write(PACK/'atmospherics/atmospherics.json',make_atmos('atmos_fallback','temperate'))
     write(PACK/'color_grading/color_grading.json',make_grade('grade_fallback'))
     for fam in ['cave','nether','end']:
-        write(PACK/f'color_grading/{fam}.json',make_grade(f'grade_{fam}',1.035,6500,1.025))
+        write(PACK/f'color_grading/{fam}.json',make_grade(f'grade_{fam}',1.035,6500,1.025,outdoor=False))
     for name,vals in WATER.items():
         filename = 'water.json' if name=='clear' else f'{name}.json'
         water=make_water(name,vals)
         write(PACK/f'water/{filename}',water)
         write(PACK/f'subpacks/cinematic/water/{filename}',water)
-        write(PACK/f'subpacks/calm/water/{filename}',make_water(name,vals,calm=True))
+        write(PACK/f'subpacks/balanced/water/{filename}',make_water(name,vals,preset='balanced'))
+        write(PACK/f'subpacks/calm/water/{filename}',make_water(name,vals,preset='calm'))
     write(PACK/'shadows/global.json',{'format_version':'1.21.80','minecraft:shadow_settings':{'shadow_style':'soft_shadows','texel_size':16}})
     # Point lights already supported by vanilla; no behavior/light-level changes.
     colors={'torch':'#FFD296','lantern':'#FFBC78','soul_torch':'#75DCFF',
@@ -187,7 +194,7 @@ def main():
     shutil.copyfile(ROOT/'THIRD_PARTY_NOTICES.md',PACK/'THIRD_PARTY_NOTICES.md')
     if (REF/'UPSTREAM.json').exists(): shutil.copyfile(REF/'UPSTREAM.json',ROOT/'UPSTREAM.json')
     # Reproducible archive; manifest is at the ZIP root, never a wrapper folder.
-    dest=OUT/'SATURN_X_AURORA_1.0.0.mcpack'
+    dest=OUT/f'SATURN_X_AURORA_{VERSION_TEXT}_ULTRA_OCEAN.mcpack'
     with zipfile.ZipFile(dest,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
         for p in sorted(PACK.rglob('*')):
             if p.is_file():

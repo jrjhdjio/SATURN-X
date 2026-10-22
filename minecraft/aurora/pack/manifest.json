@@ -1,11 +1,11 @@
 {
   "format_version": 2,
   "header": {
-    "name": "SATURN X | AURORA",
-    "description": "Golden light, cinematic skies and clear water. Requires Vibrant Visuals. v1.0.0",
+    "name": "SATURN X | AURORA 2 - ULTRA OCEAN",
+    "description": "Rich cinematic color, golden sunsets, blue moonlight and rolling ocean waves. Requires Vibrant Visuals. v2.0.0",
     "uuid": "2f21dc79-bfee-4cb3-aec4-a35ce5820cf2",
     "version": [
-      1,
+      2,
       0,
       0
     ],
@@ -20,7 +20,7 @@
       "type": "resources",
       "uuid": "adc92f7a-81ef-49f8-a960-19b71943d1d8",
       "version": [
-        1,
+        2,
         0,
         0
       ]
@@ -36,8 +36,13 @@
       "memory_tier": 0
     },
     {
+      "folder_name": "balanced",
+      "name": "BALANCED | Cinematic color, lighter waves",
+      "memory_tier": 0
+    },
+    {
       "folder_name": "cinematic",
-      "name": "CINEMATIC | Full water waves",
+      "name": "ULTRA OCEAN | Rich color and full ocean swells",
       "memory_tier": 0
     }
   ],
