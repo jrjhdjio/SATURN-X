@@ -1,0 +1,437 @@
+[
+  {
+    "biome": "bamboo_jungle",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "bamboo_jungle_hills",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "basalt_deltas",
+    "look": "nether",
+    "water": "vanilla"
+  },
+  {
+    "biome": "beach",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "birch_forest",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "birch_forest_hills",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "birch_forest_hills_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "birch_forest_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "cherry_grove",
+    "look": "cherry",
+    "water": "clear"
+  },
+  {
+    "biome": "cold_beach",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "cold_ocean",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "cold_taiga",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "cold_taiga_hills",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "cold_taiga_mutated",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "crimson_forest",
+    "look": "nether",
+    "water": "vanilla"
+  },
+  {
+    "biome": "deep_cold_ocean",
+    "look": "alpine",
+    "water": "deep"
+  },
+  {
+    "biome": "deep_dark",
+    "look": "cave",
+    "water": "clear"
+  },
+  {
+    "biome": "deep_frozen_ocean",
+    "look": "alpine",
+    "water": "deep"
+  },
+  {
+    "biome": "deep_lukewarm_ocean",
+    "look": "tropical",
+    "water": "deep"
+  },
+  {
+    "biome": "deep_ocean",
+    "look": "temperate",
+    "water": "deep"
+  },
+  {
+    "biome": "deep_warm_ocean",
+    "look": "tropical",
+    "water": "deep"
+  },
+  {
+    "biome": "desert",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "desert_hills",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "desert_mutated",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "dripstone_caves",
+    "look": "cave",
+    "water": "clear"
+  },
+  {
+    "biome": "extreme_hills",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "extreme_hills_edge",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "extreme_hills_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "extreme_hills_plus_trees",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "extreme_hills_plus_trees_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "flower_forest",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "forest",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "forest_hills",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "frozen_ocean",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "frozen_peaks",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "frozen_river",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "grove",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "hell",
+    "look": "nether",
+    "water": "vanilla"
+  },
+  {
+    "biome": "ice_mountains",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "ice_plains",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "ice_plains_spikes",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "jagged_peaks",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "jungle",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "jungle_edge",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "jungle_edge_mutated",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "jungle_hills",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "jungle_mutated",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "legacy_frozen_ocean",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "lukewarm_ocean",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "lush_caves",
+    "look": "cave",
+    "water": "clear"
+  },
+  {
+    "biome": "mangrove_swamp",
+    "look": "mystic",
+    "water": "swamp"
+  },
+  {
+    "biome": "meadow",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "mega_taiga",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "mega_taiga_hills",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa_bryce",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa_plateau",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa_plateau_mutated",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa_plateau_stone",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mesa_plateau_stone_mutated",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "mushroom_island",
+    "look": "mystic",
+    "water": "clear"
+  },
+  {
+    "biome": "mushroom_island_shore",
+    "look": "mystic",
+    "water": "clear"
+  },
+  {
+    "biome": "ocean",
+    "look": "temperate",
+    "water": "ocean"
+  },
+  {
+    "biome": "pale_garden",
+    "look": "mystic",
+    "water": "clear"
+  },
+  {
+    "biome": "plains",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "redwood_taiga_hills_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "redwood_taiga_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "river",
+    "look": "temperate",
+    "water": "river"
+  },
+  {
+    "biome": "roofed_forest",
+    "look": "mystic",
+    "water": "clear"
+  },
+  {
+    "biome": "roofed_forest_mutated",
+    "look": "mystic",
+    "water": "clear"
+  },
+  {
+    "biome": "savanna",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "savanna_mutated",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "savanna_plateau",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "savanna_plateau_mutated",
+    "look": "arid",
+    "water": "clear"
+  },
+  {
+    "biome": "snowy_slopes",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "soulsand_valley",
+    "look": "nether",
+    "water": "vanilla"
+  },
+  {
+    "biome": "stone_beach",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "stony_peaks",
+    "look": "alpine",
+    "water": "alpine"
+  },
+  {
+    "biome": "sunflower_plains",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "swampland",
+    "look": "mystic",
+    "water": "swamp"
+  },
+  {
+    "biome": "swampland_mutated",
+    "look": "mystic",
+    "water": "swamp"
+  },
+  {
+    "biome": "taiga",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "taiga_hills",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "taiga_mutated",
+    "look": "temperate",
+    "water": "clear"
+  },
+  {
+    "biome": "the_end",
+    "look": "end",
+    "water": "vanilla"
+  },
+  {
+    "biome": "warm_ocean",
+    "look": "tropical",
+    "water": "tropical"
+  },
+  {
+    "biome": "warped_forest",
+    "look": "nether",
+    "water": "vanilla"
+  }
+]

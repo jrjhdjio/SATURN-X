@@ -1,0 +1,692 @@
+{
+  "repository": "https://github.com/Mojang/bedrock-samples",
+  "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+  "tag": "v1.26.50.4",
+  "files": [
+    {
+      "path": "LICENSE.md",
+      "bytes": 222,
+      "sha256": "ca18c0dede68ce24ea1cd6f9df0813579b6f9f979787983a50baec99345f975d"
+    },
+    {
+      "path": "resource_pack/atmospherics/atmospherics.json",
+      "bytes": 2165,
+      "sha256": "cb720057e9484bd87c0a04ff561aab35f60992eb146541ff092d9416947ae43c"
+    },
+    {
+      "path": "resource_pack/atmospherics/basalt_deltas_atmospherics.json",
+      "bytes": 559,
+      "sha256": "d8b8c6cf9d86518a52d0cf7f36640cb99da7f05e47eea807609b544d3ed0218f"
+    },
+    {
+      "path": "resource_pack/atmospherics/crimson_forest_atmospherics.json",
+      "bytes": 546,
+      "sha256": "085285790f5b9ccddb2b2c2be2e4d789907425654a77ba09a438e92868ed9051"
+    },
+    {
+      "path": "resource_pack/atmospherics/desert_atmospherics.json",
+      "bytes": 2207,
+      "sha256": "1c77ad7ffc15f56687ed041bfe25991430ea6be3f86984d37c80d1743971d3bf"
+    },
+    {
+      "path": "resource_pack/atmospherics/end_atmospherics.json",
+      "bytes": 728,
+      "sha256": "3a007df93ac5c63af4faece3a75894caa8e54314c05014e50edf4cf240b3a7c1"
+    },
+    {
+      "path": "resource_pack/atmospherics/hell_atmospherics.json",
+      "bytes": 536,
+      "sha256": "90db455515a2efda23d740a59f6b420ff1f79142ee0127fee624c247e1b7c404"
+    },
+    {
+      "path": "resource_pack/atmospherics/hot_atmospherics.json",
+      "bytes": 2207,
+      "sha256": "88e3be3a2ab149a3fb74a394d69b6620ac72385a4fdab9e6eee8f686cadb13f1"
+    },
+    {
+      "path": "resource_pack/atmospherics/ice_plains_spikes_atmospherics.json",
+      "bytes": 2222,
+      "sha256": "9a24be3ac753ad8a18fbe538b8441a0b9ca060323736106a116426e3574488f3"
+    },
+    {
+      "path": "resource_pack/atmospherics/mangrove_swamp_atmospherics.json",
+      "bytes": 2218,
+      "sha256": "a4bd23d16cd43b0eed32b50a6c9d111de03605b9f44bf6bb4056692c7426fef6"
+    },
+    {
+      "path": "resource_pack/atmospherics/mesa_atmospherics.json",
+      "bytes": 2205,
+      "sha256": "66eab50fecba1f6a4aeb6304522385d7bd29b56d5af6effd73323b56ad103431"
+    },
+    {
+      "path": "resource_pack/atmospherics/mushroom_island_atmospherics.json",
+      "bytes": 2215,
+      "sha256": "79c4c0a8213875eddca4ca87f9fd6572899015ca82a2d9e9f0fc86b5263b2b4a"
+    },
+    {
+      "path": "resource_pack/atmospherics/pale_garden_atmospherics.json",
+      "bytes": 2215,
+      "sha256": "adfb9d18a048a166d3ee42d7efea70b8959c17fff48ec453a7558ff8cb6dace2"
+    },
+    {
+      "path": "resource_pack/atmospherics/roofed_forest_atmospherics.json",
+      "bytes": 1921,
+      "sha256": "db8494e7344485541a63754f761b4fa0357513297c89282113f5869cf8faff11"
+    },
+    {
+      "path": "resource_pack/atmospherics/soulsand_valley_atmospherics.json",
+      "bytes": 555,
+      "sha256": "b2ad60514923bf8ad8d51f99c9539910325a02ffb45e505848b34b3dd6b23d73"
+    },
+    {
+      "path": "resource_pack/atmospherics/swampland_atmospherics.json",
+      "bytes": 2213,
+      "sha256": "7ee851eb9b585c5235e09b93fac7b943e077084186228eb93f419eeaa3f8336f"
+    },
+    {
+      "path": "resource_pack/atmospherics/warmish_atmospherics.json",
+      "bytes": 2211,
+      "sha256": "56341b23ea4c96df84c6da39865936ab233d60c98a3ad58a519aea26d14065bd"
+    },
+    {
+      "path": "resource_pack/atmospherics/warped_forest_atmospherics.json",
+      "bytes": 553,
+      "sha256": "f9ba215be49818007359dbd4aff5107463442294c399201474260045a149c9c6"
+    },
+    {
+      "path": "resource_pack/biomes/bamboo_jungle.client_biome.json",
+      "bytes": 1110,
+      "sha256": "42d7733d6dcb4e6bbc4443b88bb8d8ec57178de5814c1a1bfbdac138fcd4cbe7"
+    },
+    {
+      "path": "resource_pack/biomes/bamboo_jungle_hills.client_biome.json",
+      "bytes": 1128,
+      "sha256": "4ee2eca0c09dbc40f3f43dc43e1e09ce5e4614ce876c8fffd8d94817514a6c7f"
+    },
+    {
+      "path": "resource_pack/biomes/basalt_deltas.client_biome.json",
+      "bytes": 1389,
+      "sha256": "b3202d13cd967e27eee0f367d461e6be9fefb67067c800a7d6f14017033f9da7"
+    },
+    {
+      "path": "resource_pack/biomes/beach.client_biome.json",
+      "bytes": 1007,
+      "sha256": "ef82223b5de71b9eae0ab19ba90f5bdc20ee74b7409c8a10214559d25a91b9be"
+    },
+    {
+      "path": "resource_pack/biomes/birch_forest.client_biome.json",
+      "bytes": 1107,
+      "sha256": "245bef262a89ebccbc6eca0a0756d71f8e886cfbe51ab9f96dfe056deef41554"
+    },
+    {
+      "path": "resource_pack/biomes/birch_forest_hills.client_biome.json",
+      "bytes": 1125,
+      "sha256": "116d142c3c9cd524bb3e6f4aa955d902e98a340c4e407a6b7e23b8d1df7eb71f"
+    },
+    {
+      "path": "resource_pack/biomes/birch_forest_hills_mutated.client_biome.json",
+      "bytes": 1030,
+      "sha256": "4862db850908ed893546c50cfd5229828503b7125bfb1b00265ca531a06622ef"
+    },
+    {
+      "path": "resource_pack/biomes/birch_forest_mutated.client_biome.json",
+      "bytes": 1118,
+      "sha256": "5f79fb35e419930a97302793900c43f29e0223b8b3df0d17cf90eb1cbd682389"
+    },
+    {
+      "path": "resource_pack/biomes/cherry_grove.client_biome.json",
+      "bytes": 1257,
+      "sha256": "11e1a519b3762d7e8ec78a334e2fef3e8579c16ac929be3dfeddf9b32e5900d3"
+    },
+    {
+      "path": "resource_pack/biomes/cold_beach.client_biome.json",
+      "bytes": 1014,
+      "sha256": "9fbc281edef931f7289da2907e47f80163eddcb6577aae98aa56e9965246156b"
+    },
+    {
+      "path": "resource_pack/biomes/cold_ocean.client_biome.json",
+      "bytes": 1092,
+      "sha256": "25b9b0d53fa750876f4f5502e24f73344f9816bbf67bb9ea4bd7720d726da66b"
+    },
+    {
+      "path": "resource_pack/biomes/cold_taiga.client_biome.json",
+      "bytes": 1014,
+      "sha256": "e8c62871dcc7ae8708be6b55b7e7f298601b4879c5f11232935abdc3db1cf0ca"
+    },
+    {
+      "path": "resource_pack/biomes/cold_taiga_hills.client_biome.json",
+      "bytes": 1026,
+      "sha256": "5d472dc89c89d0e0e71c339fb8267414bf701b3f6e450c69531a13ca5498bcbd"
+    },
+    {
+      "path": "resource_pack/biomes/cold_taiga_mutated.client_biome.json",
+      "bytes": 1030,
+      "sha256": "0a6c5cdb4f7635dc0979bd3d41c4975c29679ef06be3041e77a48a8bbae71cef"
+    },
+    {
+      "path": "resource_pack/biomes/crimson_forest.client_biome.json",
+      "bytes": 1398,
+      "sha256": "7efb2c63de5923e15e93042da92f9ef2086c686a15dd2496f2f0619e184fae91"
+    },
+    {
+      "path": "resource_pack/biomes/dappled_forest.client_biome.json",
+      "bytes": 649,
+      "sha256": "4e77748b94ecaa5fd3ad061836a8e1d72895880c8275732fa941fd2732b4d233"
+    },
+    {
+      "path": "resource_pack/biomes/deep_cold_ocean.client_biome.json",
+      "bytes": 1102,
+      "sha256": "512a847c96f699c43f328a9cda2a1490a1ff1a4434fc12c31019edc8b5bfada2"
+    },
+    {
+      "path": "resource_pack/biomes/deep_dark.client_biome.json",
+      "bytes": 1096,
+      "sha256": "773b20751f3ebfa9c7f282479787dc13198948ad1d0b424847f604151858f61c"
+    },
+    {
+      "path": "resource_pack/biomes/deep_frozen_ocean.client_biome.json",
+      "bytes": 1103,
+      "sha256": "1cbc522b2b37e0fb2fc8ad4024fa8e78787554b8d0e9a587b93885f7277f96ef"
+    },
+    {
+      "path": "resource_pack/biomes/deep_lukewarm_ocean.client_biome.json",
+      "bytes": 1110,
+      "sha256": "dde758978bb3570fcb22f494f72f186e601b6e5bbbcd6c917b9070d88376ded4"
+    },
+    {
+      "path": "resource_pack/biomes/deep_ocean.client_biome.json",
+      "bytes": 1092,
+      "sha256": "1ffe4425a110e21887fac17443227465daceca8a0fbf75157c5ec4c2cb24c53d"
+    },
+    {
+      "path": "resource_pack/biomes/deep_warm_ocean.client_biome.json",
+      "bytes": 1102,
+      "sha256": "225215ae48b7bf1b8fd7cbd89c09cb62084c20db1e923f47e45242e4d042ec2f"
+    },
+    {
+      "path": "resource_pack/biomes/desert.client_biome.json",
+      "bytes": 1086,
+      "sha256": "581482ea9e8f2504eec9f5fc69c2375b196a56c55ea06fa2176db9b80947b780"
+    },
+    {
+      "path": "resource_pack/biomes/desert_hills.client_biome.json",
+      "bytes": 1104,
+      "sha256": "25974466db0513c83e2dfae33b095c6ba798d1742ad2621591ec894b27407876"
+    },
+    {
+      "path": "resource_pack/biomes/desert_mutated.client_biome.json",
+      "bytes": 1099,
+      "sha256": "57158574d516229407125c4f997ed9a2d29ddcf7b495ffb44c9fe53df83a8160"
+    },
+    {
+      "path": "resource_pack/biomes/dripstone_caves.client_biome.json",
+      "bytes": 1108,
+      "sha256": "ce8ed2a1210c4502f0147907b20c6dcb373514f9cfb43f8cc2021471d6a7119b"
+    },
+    {
+      "path": "resource_pack/biomes/extreme_hills.client_biome.json",
+      "bytes": 1023,
+      "sha256": "d66428d4c27cf7dc15c7578607387a9a4ee7f2605361636a3416aa852facdba1"
+    },
+    {
+      "path": "resource_pack/biomes/extreme_hills_edge.client_biome.json",
+      "bytes": 1033,
+      "sha256": "f1795181ad62a703fca77e5e332fc95b0bc585fbcdf169b203783568194eb039"
+    },
+    {
+      "path": "resource_pack/biomes/extreme_hills_mutated.client_biome.json",
+      "bytes": 1039,
+      "sha256": "4e3d822549bb5990f0c3c71b235e3bc502701d30a42742fd663b249cb823e6eb"
+    },
+    {
+      "path": "resource_pack/biomes/extreme_hills_plus_trees.client_biome.json",
+      "bytes": 1045,
+      "sha256": "9406a46f448fe4c0173f0d72079d0ba07753c29a671de52aea9662280ecb00d9"
+    },
+    {
+      "path": "resource_pack/biomes/extreme_hills_plus_trees_mutated.client_biome.json",
+      "bytes": 1061,
+      "sha256": "c954bd1bbbdd2c22bf631ba75d71ff2d51fcc003392c3c6477d994eff35838a5"
+    },
+    {
+      "path": "resource_pack/biomes/flower_forest.client_biome.json",
+      "bytes": 1110,
+      "sha256": "17d7e9ff145f30cd3f8598f7d3db3fa54654168e3beb36fe58f05bc486648cc8"
+    },
+    {
+      "path": "resource_pack/biomes/forest.client_biome.json",
+      "bytes": 1088,
+      "sha256": "a052567471637e6481b26c55c80be431b5d0d709d162524ed5af7d4bfa9f0df9"
+    },
+    {
+      "path": "resource_pack/biomes/forest_hills.client_biome.json",
+      "bytes": 1021,
+      "sha256": "4e59067bc3e2713d504a524e4e6e474d4643b97dcb6766a6d63020e22626bfc3"
+    },
+    {
+      "path": "resource_pack/biomes/frozen_ocean.client_biome.json",
+      "bytes": 1093,
+      "sha256": "8bbb6f3422e8bc5034c709ebbd7962d1a585d28f9b5b9c1a57321a9a120d0eee"
+    },
+    {
+      "path": "resource_pack/biomes/frozen_peaks.client_biome.json",
+      "bytes": 1095,
+      "sha256": "8e94405c6a81cf73a6dc9cb93cec8cf4bfd4152c2a7d2374146d23346d45bbe3"
+    },
+    {
+      "path": "resource_pack/biomes/frozen_river.client_biome.json",
+      "bytes": 1093,
+      "sha256": "513e42c9c18aa6d8555a6b703b17cb18473923c8a85b1df8d0ad5de2d8e79f1f"
+    },
+    {
+      "path": "resource_pack/biomes/grove.client_biome.json",
+      "bytes": 1088,
+      "sha256": "ac6f85507f6bd1d13c8521635f81b547206156676ca84895ae9d728b3e53aae0"
+    },
+    {
+      "path": "resource_pack/biomes/hell.client_biome.json",
+      "bytes": 1285,
+      "sha256": "61278ecb5f2227456b7f292b4517a9f8e324e606ec18a09a72f1e015f5c21d65"
+    },
+    {
+      "path": "resource_pack/biomes/ice_mountains.client_biome.json",
+      "bytes": 1020,
+      "sha256": "8858822aae057314ebd32b7e3eed1d2e895c0e9c1468ee95bcd551f5f874f68a"
+    },
+    {
+      "path": "resource_pack/biomes/ice_plains.client_biome.json",
+      "bytes": 1014,
+      "sha256": "40094f320a615bdf8c08113e82824a8f611031e3ce7bc5a98e25e9119e760195"
+    },
+    {
+      "path": "resource_pack/biomes/ice_plains_spikes.client_biome.json",
+      "bytes": 1061,
+      "sha256": "19253e460b6eabec6d4e73d7ebf48b5d6144c021be71775776c8214dcd0c4358"
+    },
+    {
+      "path": "resource_pack/biomes/jagged_peaks.client_biome.json",
+      "bytes": 1098,
+      "sha256": "bdfe10c70d9bb4a1ed54424603d38b1958ee6468518a1fcf8bfea7f4b39ac6a7"
+    },
+    {
+      "path": "resource_pack/biomes/jungle.client_biome.json",
+      "bytes": 1089,
+      "sha256": "3d207d5c04815564f9dedebb41d9619af868c77068b691aaf42f0a796695dd83"
+    },
+    {
+      "path": "resource_pack/biomes/jungle_edge.client_biome.json",
+      "bytes": 1104,
+      "sha256": "831df5f82776c21dc532abf73516c8fd3e6fa534331845ab2ccffd711ff5b1e2"
+    },
+    {
+      "path": "resource_pack/biomes/jungle_edge_mutated.client_biome.json",
+      "bytes": 1021,
+      "sha256": "450ab3e9fdfea7571e69a925f8f35bb7f151ccc29938fd4048e8ede3dc781e19"
+    },
+    {
+      "path": "resource_pack/biomes/jungle_hills.client_biome.json",
+      "bytes": 1107,
+      "sha256": "3303263e9daa0f8dacafbb7392001b397214dd457ea16b5acecfb250f92c313d"
+    },
+    {
+      "path": "resource_pack/biomes/jungle_mutated.client_biome.json",
+      "bytes": 1113,
+      "sha256": "44c22e19e8eada8d953f6818e5f23813791f9740a47e0718f71339f428712078"
+    },
+    {
+      "path": "resource_pack/biomes/legacy_frozen_ocean.client_biome.json",
+      "bytes": 1091,
+      "sha256": "497518430278bc442d9980b9f869696288d14d14cac42ff22144aa88779067be"
+    },
+    {
+      "path": "resource_pack/biomes/lukewarm_ocean.client_biome.json",
+      "bytes": 1100,
+      "sha256": "c7ff21a27f1eed47ce6feae5a5781b503dd383bd016dfbb390de69c640b7b6a6"
+    },
+    {
+      "path": "resource_pack/biomes/lush_caves.client_biome.json",
+      "bytes": 1101,
+      "sha256": "4743bd5e9778c721731e81a172f8e4da3e90827926f68de02a226bfe32d220ab"
+    },
+    {
+      "path": "resource_pack/biomes/mangrove_swamp.client_biome.json",
+      "bytes": 1346,
+      "sha256": "e1ad8abc88565b66584ba81821d028d3145362c6932374c14d8b61465863f7f5"
+    },
+    {
+      "path": "resource_pack/biomes/meadow.client_biome.json",
+      "bytes": 1090,
+      "sha256": "fc95539b32e35697128ca7420034ec339fbc203b48ffdf2510b61eabcbd668d3"
+    },
+    {
+      "path": "resource_pack/biomes/mega_taiga.client_biome.json",
+      "bytes": 1101,
+      "sha256": "0eca74e1ec52c5efefc86424b656982abad744e9a1fc61556646e9fe1270cd5d"
+    },
+    {
+      "path": "resource_pack/biomes/mega_taiga_hills.client_biome.json",
+      "bytes": 1029,
+      "sha256": "d6b0484082cd6f8f609178f4c7136d79c32d306a5290e46138dde8e5b9387f42"
+    },
+    {
+      "path": "resource_pack/biomes/mesa.client_biome.json",
+      "bytes": 1224,
+      "sha256": "fc87c0b6fc9cd0bdb604c0a18a1300b6a77af78a1442de484989cd0990419b14"
+    },
+    {
+      "path": "resource_pack/biomes/mesa_bryce.client_biome.json",
+      "bytes": 1158,
+      "sha256": "ee5bd01a9a279343fd140d8889101d6cd157b58d5a8f1a7d317cf2a7fb72644d"
+    },
+    {
+      "path": "resource_pack/biomes/mesa_plateau.client_biome.json",
+      "bytes": 1098,
+      "sha256": "7b0de7892afdc5b5c0b52ece85ee513ca85ba147f15952d0e3ffaf6c4c9577ef"
+    },
+    {
+      "path": "resource_pack/biomes/mesa_plateau_mutated.client_biome.json",
+      "bytes": 1255,
+      "sha256": "fd2ad71e5e57a9a3c0312e074e8efce79f59cda4176f863df4e26c542b4b63cb"
+    },
+    {
+      "path": "resource_pack/biomes/mesa_plateau_stone.client_biome.json",
+      "bytes": 1174,
+      "sha256": "6be01e29ac8881bc8175016c45e4fccaad88f20f783e48f9716f459c083f8963"
+    },
+    {
+      "path": "resource_pack/biomes/mesa_plateau_stone_mutated.client_biome.json",
+      "bytes": 1167,
+      "sha256": "b06b572a63318a71cb31588174fc1e30b13f5b31302051e58c0b9f2b91e06164"
+    },
+    {
+      "path": "resource_pack/biomes/mushroom_island.client_biome.json",
+      "bytes": 1051,
+      "sha256": "fb290a99550e70c32618321d8cda9356238c87877e06a914413edb8e594a57a7"
+    },
+    {
+      "path": "resource_pack/biomes/mushroom_island_shore.client_biome.json",
+      "bytes": 1063,
+      "sha256": "292d3b29df1265ebba786f10561d94971be6a0222f0422d1124a2bf88dac7c3e"
+    },
+    {
+      "path": "resource_pack/biomes/ocean.client_biome.json",
+      "bytes": 1082,
+      "sha256": "dcd470d0837243402ff0b65bc27c2902e092c012c6648adb2294f644c37e224d"
+    },
+    {
+      "path": "resource_pack/biomes/pale_garden.client_biome.json",
+      "bytes": 1397,
+      "sha256": "1a05cfa3ea0fae31990f101209f4787c2f7e33f84f10ba7dcd2f25c2a1a33cce"
+    },
+    {
+      "path": "resource_pack/biomes/plains.client_biome.json",
+      "bytes": 1009,
+      "sha256": "7f9de5eaa76a215985daada4c92537890e223ab4e82f5ab7bd3f3b37319e251c"
+    },
+    {
+      "path": "resource_pack/biomes/redwood_taiga_hills_mutated.client_biome.json",
+      "bytes": 1135,
+      "sha256": "47d8be4e3e0897144c0b44ad86be859d503352a1d14c1783d8007bfc62376d71"
+    },
+    {
+      "path": "resource_pack/biomes/redwood_taiga_mutated.client_biome.json",
+      "bytes": 1123,
+      "sha256": "085f289f36aa786798b769ed92ece61f9d100c6999644c92a6c81a12bf7623b0"
+    },
+    {
+      "path": "resource_pack/biomes/river.client_biome.json",
+      "bytes": 1082,
+      "sha256": "18aa43eb45ce17684588ee42136f4a881599b6a4973f989485a8df2ba77e4b19"
+    },
+    {
+      "path": "resource_pack/biomes/roofed_forest.client_biome.json",
+      "bytes": 1281,
+      "sha256": "538b387ad359408ea82ef4bfb914bf8058f1e07b9e4d826d9906f5cc8b26f6d3"
+    },
+    {
+      "path": "resource_pack/biomes/roofed_forest_mutated.client_biome.json",
+      "bytes": 1227,
+      "sha256": "877f7c99f2fcde9461a1cdc7c2050552e48027b25514aa8be4f63fe9cdf7f939"
+    },
+    {
+      "path": "resource_pack/biomes/savanna.client_biome.json",
+      "bytes": 1011,
+      "sha256": "d4ec7bac5006f51cf12861822f6c91b79eac32f3aa5c0d3224aa8ee1b67d4001"
+    },
+    {
+      "path": "resource_pack/biomes/savanna_mutated.client_biome.json",
+      "bytes": 1027,
+      "sha256": "8cdb0dbee6f5ca1ea33f5af5bcb4c3220dae27b966bbaeddf8c93734bc91823f"
+    },
+    {
+      "path": "resource_pack/biomes/savanna_plateau.client_biome.json",
+      "bytes": 1027,
+      "sha256": "ba5cbd00c8b81f279be093058fd63340fcc30480117bcd5a9f3b9101c0a0d1a2"
+    },
+    {
+      "path": "resource_pack/biomes/savanna_plateau_mutated.client_biome.json",
+      "bytes": 1027,
+      "sha256": "f2bda3653e43ead823a0f8b43569a8eeebc16333bb1b6bb05c669fa117490f3c"
+    },
+    {
+      "path": "resource_pack/biomes/snowy_slopes.client_biome.json",
+      "bytes": 1102,
+      "sha256": "08d3a54b2962593b8861e0eca0c6b235f3f3bbccfbe95f169d0dd95aacdc89b3"
+    },
+    {
+      "path": "resource_pack/biomes/soulsand_valley.client_biome.json",
+      "bytes": 1398,
+      "sha256": "0c42c75472e0085094eb0ce4710e0d206395dafeb1ffc1386ff092687fc2aebe"
+    },
+    {
+      "path": "resource_pack/biomes/stone_beach.client_biome.json",
+      "bytes": 1019,
+      "sha256": "e9c15d03a3d5ae53d9c52506a9f78e1ec9da20070d319b417683c4f36077133e"
+    },
+    {
+      "path": "resource_pack/biomes/stony_peaks.client_biome.json",
+      "bytes": 1100,
+      "sha256": "5e07234914cbe7c6defeb1313c84220a26ec636412aecde582168b1f969fd2da"
+    },
+    {
+      "path": "resource_pack/biomes/sulfur_caves.client_biome.json",
+      "bytes": 1179,
+      "sha256": "a9d81bdee22b7a581450ae797010f9c82901bf22ec2a019869c0ded06fcde481"
+    },
+    {
+      "path": "resource_pack/biomes/sunflower_plains.client_biome.json",
+      "bytes": 1029,
+      "sha256": "d6968a2873caa11534eb6a941e7b4acb18717c2a56dc3ec4aeff452811cae70a"
+    },
+    {
+      "path": "resource_pack/biomes/swampland.client_biome.json",
+      "bytes": 1442,
+      "sha256": "b1f68852aa9b5231a8444949b9c344b807157a4b17e86504193e584185d271da"
+    },
+    {
+      "path": "resource_pack/biomes/swampland_mutated.client_biome.json",
+      "bytes": 1466,
+      "sha256": "5dc01ad62ad46b205154467175eefee58a89d9bbddd165c9f0bd239ea1f33917"
+    },
+    {
+      "path": "resource_pack/biomes/taiga.client_biome.json",
+      "bytes": 1007,
+      "sha256": "bdc34854671df99f7134e1fc339fa6c822be737329196a4d6946d454f285bb5e"
+    },
+    {
+      "path": "resource_pack/biomes/taiga_hills.client_biome.json",
+      "bytes": 1019,
+      "sha256": "65ac13625a85ec4f3bf09ae1fecafc518babc68ab4a2a1a58267a480b8dbaa90"
+    },
+    {
+      "path": "resource_pack/biomes/taiga_mutated.client_biome.json",
+      "bytes": 1023,
+      "sha256": "69d28adebe32cff127210f21f160f95a75b20fd98c573214cac385c50e459e81"
+    },
+    {
+      "path": "resource_pack/biomes/the_end.client_biome.json",
+      "bytes": 1151,
+      "sha256": "8d214d1ba131614fcd77b7f39903612825f9150df4ccf4f79737f842f8c23232"
+    },
+    {
+      "path": "resource_pack/biomes/warm_ocean.client_biome.json",
+      "bytes": 1125,
+      "sha256": "88bfb148649fb60bd3e72979dab831b49a143673f1ae92ba92e8202f9a3e805b"
+    },
+    {
+      "path": "resource_pack/biomes/warped_forest.client_biome.json",
+      "bytes": 1379,
+      "sha256": "dffa51ce5ef4d815ba8e746677ac8358e109168de9f63e23928c072e2259819d"
+    },
+    {
+      "path": "resource_pack/color_grading/cold_color_grading.json",
+      "bytes": 721,
+      "sha256": "9dc6f37d2ee559f5a05f65cbd79d077f996e6975f3919717c4244b23e73272e1"
+    },
+    {
+      "path": "resource_pack/color_grading/color_grading.json",
+      "bytes": 780,
+      "sha256": "dbe56c22457054713334978c25a694d61ff446b557aaf78456f418184e2b0d5c"
+    },
+    {
+      "path": "resource_pack/color_grading/coolish_color_grading.json",
+      "bytes": 723,
+      "sha256": "b5ac99b6bf71e788c2d8f1accf67c90154a6ccd5b4616f0e52443afdb60427f9"
+    },
+    {
+      "path": "resource_pack/color_grading/desert_color_grading.json",
+      "bytes": 722,
+      "sha256": "dd708427f18c0db12fce3455fee574b7370984b979d7110d9b56a1fa8d052f75"
+    },
+    {
+      "path": "resource_pack/color_grading/hot_color_grading.json",
+      "bytes": 716,
+      "sha256": "2f4cba1992530ba36e2cb4c808cefae975bcc6acdc968776f7a8e8298b3bcaca"
+    },
+    {
+      "path": "resource_pack/color_grading/ice_plains_spikes_color_grading.json",
+      "bytes": 734,
+      "sha256": "b78ad56252b74726740f671f091048cd5761efb43f0f480cbbcc1aaa10e1ba60"
+    },
+    {
+      "path": "resource_pack/color_grading/lush_caves_color_grading.json",
+      "bytes": 723,
+      "sha256": "fa8f55ddd3675aa62535487ea2d7bbdd0987cca3e6923586c5a5bb9b4ffe6ef6"
+    },
+    {
+      "path": "resource_pack/color_grading/mangrove_swamp_color_grading.json",
+      "bytes": 730,
+      "sha256": "d91475e2f1a87d6e70a80100efc3724ba03d2b4dcff665388d361a6ad54e4938"
+    },
+    {
+      "path": "resource_pack/color_grading/mesa_color_grading.json",
+      "bytes": 717,
+      "sha256": "8f3644ab5243732576ffa0b3afc505df34c9698047f2f48e0ff26eac323122d5"
+    },
+    {
+      "path": "resource_pack/color_grading/mushroom_island_color_grading.json",
+      "bytes": 731,
+      "sha256": "a6662ffdd53865ff0d785f1a95d2457877f22743ce6d2301b916b410b548163b"
+    },
+    {
+      "path": "resource_pack/color_grading/pale_garden_color_grading.json",
+      "bytes": 727,
+      "sha256": "ad68db6e56d8067c762033ca5058de36b559e2d08efe064fa8cebb569f7e9128"
+    },
+    {
+      "path": "resource_pack/color_grading/roofed_forest_color_grading.json",
+      "bytes": 703,
+      "sha256": "da29c35b289aae49f097f17bb678f355fdd38ceb14c84815375f935b95b0ce5f"
+    },
+    {
+      "path": "resource_pack/color_grading/swampland_color_grading.json",
+      "bytes": 725,
+      "sha256": "b38765e116b9acdf2005d3952f6ad013094d5c1d50d3eb5c68c2782a3ddc34f2"
+    },
+    {
+      "path": "resource_pack/color_grading/warmish_color_grading.json",
+      "bytes": 723,
+      "sha256": "6648677d8e275006138425a1e85604f38601a741e58ca47d83c5cb91ce52dfdf"
+    },
+    {
+      "path": "resource_pack/lighting/cold_lighting.json",
+      "bytes": 1130,
+      "sha256": "fb4fee90c06faf7588d63b3418660b49790b7dc320c5a793cdcd8cf83452a0f0"
+    },
+    {
+      "path": "resource_pack/lighting/coolish_lighting.json",
+      "bytes": 1133,
+      "sha256": "6e1f64b9078bd22e8b60112641dbb2dba8535b5eb940deea712524f97069217c"
+    },
+    {
+      "path": "resource_pack/lighting/desert_lighting.json",
+      "bytes": 1190,
+      "sha256": "d00de4dbfc5f5cb9cfbc2aa5da943577ae8f8351c592a7cdbbcba9fe260a9bab"
+    },
+    {
+      "path": "resource_pack/lighting/end_lighting.json",
+      "bytes": 914,
+      "sha256": "e987af5de0e7e17510dd9c1a9dcaef9eadaa7509e18d3f04bf9b3c034f42c5c9"
+    },
+    {
+      "path": "resource_pack/lighting/global.json",
+      "bytes": 1616,
+      "sha256": "5bd0e7a740f11bd92104dd959e366ce92fbb81af630e2468eeae4d0fb1b53efc"
+    },
+    {
+      "path": "resource_pack/lighting/hot_lighting.json",
+      "bytes": 1125,
+      "sha256": "d5f8d4bfdcd6e005ce6092c82c402a9c918d20bfa58af690d7bc893b59d4183e"
+    },
+    {
+      "path": "resource_pack/lighting/ice_plains_spikes_lighting.json",
+      "bytes": 1230,
+      "sha256": "8e547d635c74afa95e654137a0b004d5a00d5b7b4362f9916ca65c5cc43079a7"
+    },
+    {
+      "path": "resource_pack/lighting/mangrove_swamp_lighting.json",
+      "bytes": 1220,
+      "sha256": "4361e98ee43836457cea3f18895daeafc4ca1aa1af32ee278fd91d1eebab4590"
+    },
+    {
+      "path": "resource_pack/lighting/mesa_lighting.json",
+      "bytes": 1188,
+      "sha256": "8fe8f0035260d30aa8c1be14d1341cf82b7365efeb7befc9d13a0f047e265d5a"
+    },
+    {
+      "path": "resource_pack/lighting/mushroom_island_lighting.json",
+      "bytes": 1232,
+      "sha256": "928a77b14c6ba65fe83adc40ac0ab3c00f3b959cca34b66dd9803e75d1bcf13b"
+    },
+    {
+      "path": "resource_pack/lighting/nether_lighting.json",
+      "bytes": 713,
+      "sha256": "6ba6a654b21d859ebd1f5fb06e80a32e0b291bac43af3e653122e9745b3a4b3a"
+    },
+    {
+      "path": "resource_pack/lighting/pale_garden_lighting.json",
+      "bytes": 1170,
+      "sha256": "02a003c147bc2cf70b6cc27ecce62731b024feba45d28853a6287b44960e1ebf"
+    },
+    {
+      "path": "resource_pack/lighting/roofed_forest_lighting.json",
+      "bytes": 1006,
+      "sha256": "4ece9bdc466af43b5bbf2e24dafe043b5ee0b462df22790bf096b2792511ccee"
+    },
+    {
+      "path": "resource_pack/lighting/swampland_lighting.json",
+      "bytes": 1217,
+      "sha256": "6422dcdddc0b7030ba76eed5a072338d451d9d2565a5447983254ba6993b2817"
+    },
+    {
+      "path": "resource_pack/lighting/warmish_lighting.json",
+      "bytes": 1213,
+      "sha256": "45ce90a71fd4a3194bdb2a9ef733c4b7bfe0b5f1292bcf0a0cf1ec617d816491"
+    },
+    {
+      "path": "resource_pack/water/water.json",
+      "bytes": 677,
+      "sha256": "089d6889e527acd443663925cd7a8ca98d0f9f806bdffe118bf30dfdfb29e8bf"
+    }
+  ]
+}

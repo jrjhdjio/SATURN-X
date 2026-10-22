@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "json_files": 135,
+  "client_biomes": 87,
+  "custom_visual_identifiers": 31,
+  "presets": 2,
+  "archive_bytes": 100896,
+  "checks": [
+    "JSON parsing",
+    "manifest UUIDs",
+    "minimum engine versions",
+    "visual references",
+    "vanilla component preservation",
+    "day-cycle seams",
+    "water value ranges",
+    "preset consistency",
+    "tonemap consistency",
+    "ZIP CRC and exact contents"
+  ],
+  "minecraft_runtime_tested": false,
+  "android_device_tested": false
+}

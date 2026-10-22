@@ -1,0 +1,103 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:color_grading_settings": {
+    "description": {
+      "identifier": "saturn_aurora:grade_mystic"
+    },
+    "color_grading": {
+      "midtones": {
+        "contrast": [
+          1.045,
+          1.045,
+          1.045
+        ],
+        "gain": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "gamma": [
+          2.2,
+          2.2,
+          2.2
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "saturation": [
+          1.025,
+          1.025,
+          1.025
+        ]
+      },
+      "shadows": {
+        "contrast": [
+          1.015,
+          1.015,
+          1.015
+        ],
+        "gain": [
+          0.99,
+          1.0,
+          1.025
+        ],
+        "gamma": [
+          2.23,
+          2.23,
+          2.23
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "saturation": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "enabled": true,
+        "shadowsMax": 0.55
+      },
+      "highlights": {
+        "contrast": [
+          1.01,
+          1.01,
+          1.01
+        ],
+        "gain": [
+          1.015,
+          1.0,
+          0.985
+        ],
+        "gamma": [
+          2.2,
+          2.2,
+          2.2
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "saturation": [
+          1.015,
+          1.015,
+          1.015
+        ],
+        "enabled": true,
+        "highlightsMin": 1.8
+      },
+      "temperature": {
+        "enabled": true,
+        "temperature": 6350,
+        "type": "color_temperature"
+      }
+    },
+    "tone_mapping": {
+      "operator": "aces"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "SATURN X | AURORA",
+    "description": "Golden light, cinematic skies and clear water. Requires Vibrant Visuals. v1.0.0",
+    "uuid": "2f21dc79-bfee-4cb3-aec4-a35ce5820cf2",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      120
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "adc92f7a-81ef-49f8-a960-19b71943d1d8",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "capabilities": [
+    "pbr"
+  ],
+  "subpacks": [
+    {
+      "folder_name": "calm",
+      "name": "CALM | Same lighting, wave effect off",
+      "memory_tier": 0
+    },
+    {
+      "folder_name": "cinematic",
+      "name": "CINEMATIC | Full water waves",
+      "memory_tier": 0
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "BM / SATURN X"
+    ],
+    "url": "https://github.com/jrjhdjio/SATURN-X/tree/main/minecraft/aurora"
+  }
+}

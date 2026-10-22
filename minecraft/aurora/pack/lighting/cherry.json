@@ -1,0 +1,67 @@
+{
+  "format_version": "1.21.80",
+  "minecraft:lighting_settings": {
+    "description": {
+      "identifier": "saturn_aurora:light_cherry"
+    },
+    "directional_lights": {
+      "orbital": {
+        "sun": {
+          "illuminance": {
+            "0.0": 109.76,
+            "0.17": 62.72,
+            "0.23": 23.52,
+            "0.25": 14.7,
+            "0.282": 0.98,
+            "0.292": 0.0,
+            "0.5": 0.0,
+            "0.709": 0.0,
+            "0.719": 0.98,
+            "0.75": 16.66,
+            "0.82": 56.84,
+            "1.0": 109.76
+          },
+          "color": {
+            "0.0": "#FFF6E8",
+            "0.17": "#FFEACD",
+            "0.25": "#FFC18B",
+            "0.3": "#E9B1B7",
+            "0.35": "#CDD9F9",
+            "0.5": "#CDD9F9",
+            "0.65": "#CDD9F9",
+            "0.7": "#F2B9B0",
+            "0.75": "#FFD0A0",
+            "0.84": "#FFF0D7",
+            "1.0": "#FFF6E8"
+          }
+        },
+        "moon": {
+          "illuminance": {
+            "0.0": 0,
+            "0.2": 0,
+            "0.23": 0.4,
+            "0.735": 0.4,
+            "0.75": 0,
+            "1.0": 0
+          },
+          "color": "#C2D6FF"
+        },
+        "orbital_offset_degrees": 0.0
+      },
+      "flash": {
+        "illuminance": 4.0,
+        "color": "#CFB6FF"
+      }
+    },
+    "emissive": {
+      "desaturation": 0.14
+    },
+    "ambient": {
+      "illuminance": 0.03,
+      "color": "#D7E3FF"
+    },
+    "sky": {
+      "intensity": 0.95
+    }
+  }
+}

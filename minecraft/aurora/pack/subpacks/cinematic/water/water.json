@@ -1,0 +1,32 @@
+{
+  "format_version": "1.21.120",
+  "minecraft:water_settings": {
+    "description": {
+      "identifier": "saturn_aurora:water_clear"
+    },
+    "particle_concentrations": {
+      "cdom": 0.06,
+      "chlorophyll": 0.12,
+      "suspended_sediment": 0.08
+    },
+    "waves": {
+      "enabled": true,
+      "depth": 0.2,
+      "direction_increment": 80.0,
+      "frequency": 0.65,
+      "frequency_scaling": 1.2,
+      "mix": 0.22,
+      "octaves": 12,
+      "pull": 0.32,
+      "shape": 1.5,
+      "speed": 0.85,
+      "speed_scaling": 1.03
+    },
+    "caustics": {
+      "enabled": true,
+      "frame_length": 0.055,
+      "power": 2,
+      "scale": 0.55
+    }
+  }
+}

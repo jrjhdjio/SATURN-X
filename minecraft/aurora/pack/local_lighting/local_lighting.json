@@ -1,0 +1,37 @@
+{
+  "format_version": "1.21.120",
+  "minecraft:local_light_settings": {
+    "minecraft:torch": {
+      "light_color": "#FFD296",
+      "light_type": "point_light"
+    },
+    "minecraft:lantern": {
+      "light_color": "#FFBC78",
+      "light_type": "point_light"
+    },
+    "minecraft:soul_torch": {
+      "light_color": "#75DCFF",
+      "light_type": "point_light"
+    },
+    "minecraft:soul_lantern": {
+      "light_color": "#75DCFF",
+      "light_type": "point_light"
+    },
+    "minecraft:end_rod": {
+      "light_color": "#DFD3FF",
+      "light_type": "point_light"
+    },
+    "minecraft:redstone_torch": {
+      "light_color": "#FF503E",
+      "light_type": "point_light"
+    },
+    "minecraft:candle": {
+      "light_color": "#FFD296",
+      "light_type": "point_light"
+    },
+    "minecraft:sea_pickle": {
+      "light_color": "#BCEDC3",
+      "light_type": "point_light"
+    }
+  }
+}
